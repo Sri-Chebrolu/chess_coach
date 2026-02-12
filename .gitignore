@@ -1,0 +1,8 @@
+.env
+.venv/
+chess_coach.log
+__pycache__/
+.DS_Store
+*.pyc
+stockfish-macos-m1-apple-silicon.tar
+stockfish/

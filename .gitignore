@@ -6,3 +6,4 @@ __pycache__/
 *.pyc
 stockfish-macos-m1-apple-silicon.tar
 stockfish/
+.cursor/

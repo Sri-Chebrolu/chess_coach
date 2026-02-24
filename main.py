@@ -23,16 +23,27 @@ def format_top_moves(moves: list[dict]) -> str:
 def print_help():
     print("""
 Commands:
-  fen <FEN_STRING>   Load a new position
-  analyze            Analyze the current position
-  move <MOVE>        Test a move (e.g. 'move Nf3' or 'move g1f3')
-  play <MOVE>        Play a move on the board (advances the game)
-  undo               Undo the last played move
-  board              Show the current board
-  legal              List all legal moves
-  ask <QUESTION>     Ask the coach a free-form question
-  help               Show this help message
-  quit               Exit
+  fen <FEN_STRING>      Load a new position from FEN notation
+  pgn <PGN_STRING>      Load a PGN game for navigation (inline string)
+  loadpgn <filepath>    Load a PGN game from file
+
+  PGN Navigation (available after loading a PGN):
+    goto <N>            Jump to half-move N (0=start, 1=after 1st move, etc.)
+    next                Advance one half-move forward
+    prev                Go back one half-move
+    start               Jump to starting position
+    end                 Jump to final position
+    moves               Show all moves with current position marker
+
+  analyze               Analyze the current position with Stockfish
+  move <MOVE>           Test a move without playing it (e.g. 'move Nf3')
+  play <MOVE>           Play a move and advance the game (e.g. 'play e4')
+  undo                  Undo the last played move (not available in PGN mode)
+  board                 Show the current board position
+  legal                 List all legal moves in current position
+  ask <QUESTION>        Ask the coach a free-form question
+  help                  Show this help message
+  quit                  Exit the chess coach
 """)
 
 
@@ -126,12 +137,77 @@ def main():
                 print(f"Played {san}. {board_state.turn} to move.")
                 print(board_state.display())
             elif command == "undo":
+                if board_state.pgn_mode:
+                    print("Cannot undo in PGN navigation mode. Use 'prev' to go back.")
+                    continue
                 undone = board_state.undo_move()
                 if undone:
                     print(f"Undone: {undone}. {board_state.turn} to move.")
                     print(board_state.display())
                 else:
                     print("Nothing to undo.")
+            elif command == "pgn":
+                if not arg:
+                    print("Usage: pgn <PGN_STRING>")
+                    print("Example: pgn 1. e4 e5 2. Nf3 Nc6 3. Bb5")
+                    continue
+                success, message = board_state.load_pgn(arg)
+                print(message)
+                if success:
+                    print(board_state.display())
+            elif command == "loadpgn":
+                if not arg:
+                    print("Usage: loadpgn <filepath>")
+                    print("Example: loadpgn game.pgn")
+                    print("Example: loadpgn ~/chess/kasparov_deep_blue.pgn")
+                    continue
+                success, message = board_state.load_pgn_file(arg)
+                print(message)
+                if success:
+                    print(board_state.display())
+            elif command == "goto":
+                if not arg:
+                    print("Usage: goto <move_number>")
+                    print("Example: goto 5 (jumps to position after 5th half-move)")
+                    continue
+                try:
+                    move_num = int(arg)
+                    success, message = board_state.navigate_to_move(move_num)
+                    print(message)
+                    if success:
+                        print(board_state.display())
+                        print(f"\nFEN: {board_state.board.fen()}")
+                except ValueError:
+                    print(f"Invalid move number: '{arg}'")
+            elif command == "next":
+                success, message = board_state.pgn_next()
+                print(message)
+                if success:
+                    print(board_state.display())
+                    print(f"\nFEN: {board_state.board.fen()}")
+            elif command == "prev":
+                success, message = board_state.pgn_prev()
+                print(message)
+                if success:
+                    print(board_state.display())
+                    print(f"\nFEN: {board_state.board.fen()}")
+            elif command == "start":
+                success, message = board_state.pgn_start()
+                print(message)
+                if success:
+                    print(board_state.display())
+                    print(f"\nFEN: {board_state.board.fen()}")
+            elif command == "end":
+                success, message = board_state.pgn_end()
+                print(message)
+                if success:
+                    print(board_state.display())
+                    print(f"\nFEN: {board_state.board.fen()}")
+            elif command == "moves":
+                if not board_state.pgn_mode:
+                    print("No PGN loaded. Use 'pgn <string>' first.")
+                else:
+                    print(board_state.get_pgn_moves_display())
             elif command == "ask":
                 if not arg:
                     print("Usage: ask <your question>")

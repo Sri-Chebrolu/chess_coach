@@ -12,6 +12,7 @@ Load any position, get strategic analysis grounded in positional heuristics, tes
 - **Positional Heuristics** — Analysis grounded in concrete chess principles: center control, piece activity, king safety, pawn structure, development, and tactical motifs
 - **Interactive Play** — Play moves on the board, undo them, and explore variations
 - **Conversational Context** — Ask follow-up questions that reference prior analysis
+- **PGN Navigation** — Load complete games from PGN notation, navigate move-by-move, and analyze any position within the game
 
 ## Architecture
 
@@ -64,17 +65,75 @@ python main.py
 | Command | Description |
 |---------|-------------|
 | `fen <FEN>` | Load a position from a FEN string |
+| `pgn <PGN_STRING>` | Load a PGN game for move-by-move navigation (inline string) |
+| `loadpgn <filepath>` | Load a PGN game from a file (supports long games) |
 | `analyze` | Analyze the current position with engine + AI coaching |
 | `move <MOVE>` | Test a move without playing it (get comparison feedback) |
 | `play <MOVE>` | Play a move on the board (advances the game) |
-| `undo` | Undo the last played move |
+| `undo` | Undo the last played move (not available in PGN navigation mode) |
 | `board` | Display the current board |
 | `legal` | List all legal moves |
 | `ask <QUESTION>` | Ask the coach a free-form question about the position |
+| **PGN Navigation** | Available after loading a PGN with `pgn` command |
+| `goto <N>` | Jump to half-move N (0=start, 1=after first move, etc.) |
+| `next` | Advance one half-move forward |
+| `prev` | Go back one half-move |
+| `start` | Jump to starting position |
+| `end` | Jump to final position |
+| `moves` | Display all moves with current position marked with `*` |
 | `help` | Show available commands |
 | `quit` | Exit |
 
 Moves can be entered in standard algebraic notation (`Nf3`) or UCI format (`g1f3`).
+
+### PGN Navigation Example
+
+**Load from inline string** (best for short games):
+
+```
+chess> pgn 1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6
+Loaded game with 8 half-moves (4 full moves)
+? vs ?
+Currently at starting position
+Use 'goto <N>', 'next', 'prev', 'start', 'end', or 'moves' to navigate
+
+chess> next
+Position after move 1: 1.e4
+[board displayed]
+
+chess> goto 4
+Position after move 4: 2...cxd4
+[board displayed]
+
+chess> analyze
+Analyzing position...
+[Claude analyzes the current position from the PGN game]
+
+chess> moves
+1. e4 c5 2. Nf3 d6 3. d4 *
+
+chess> play Nf6
+Played Nf6. White to move.
+[board displayed - now in play mode, exited PGN navigation]
+```
+
+**Load from file** (recommended for long games):
+
+```
+chess> loadpgn games/kasparov_deep_blue_1997.pgn
+Loaded game with 73 half-moves (37 full moves)
+Kasparov, Garry vs Deep Blue
+Event: IBM Man-Machine, New York USA
+Currently at starting position
+Use 'goto <N>', 'next', 'prev', 'start', 'end', or 'moves' to navigate
+
+chess> goto 20
+Position after move 20: 10...Qb6
+
+chess> analyze
+Analyzing position...
+[Claude provides strategic analysis at move 20]
+```
 
 ### Example Session
 

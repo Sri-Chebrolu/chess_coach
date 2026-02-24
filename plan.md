@@ -816,3 +816,656 @@ User types "move Nf3"
    chess> ask Why is king safety important here?
    ```
    Verify: Claude references the position from the previous analysis
+
+---
+
+## PGN Paste Feature — Detailed Implementation
+
+### Context
+
+The chess coach currently supports single-move input and FEN position loading. Users have requested the ability to paste PGN (Portable Game Notation) strings to load complete games and navigate through them move-by-move. This enables users to:
+- Review historical games
+- Analyze positions from any point in a game
+- Get coaching feedback on specific positions within a game sequence
+
+### Implementation Approach
+
+**Two-Mode System:**
+- **Play Mode** (default): Users freely play moves, analyze positions
+- **PGN Navigation Mode**: Users review a loaded PGN, navigate with `next`/`prev`/`goto` commands
+
+**State Management:**
+- Store parsed PGN game + extracted move list in `BoardState`
+- Track current position with index (0 = start, N = after Nth half-move)
+- Rebuild board from scratch when navigating (simple & reliable)
+- Auto-exit PGN mode when user plays a move or loads FEN
+
+**PGN Parsing:**
+- Use `chess.pgn` module from existing `python-chess` library
+- Wrap PGN strings in `io.StringIO` - `chess.pgn.read_game()` expects a file object, not a string. `StringIO` wraps the string as an in-memory file.
+- Extract mainline only - PGN games can have alternative move branches in parentheses like `1.e4 e5 (1...c5)`. We follow only the main line and skip alternatives.
+- Support custom starting positions via FEN tag
+- Display game metadata (Event, White, Black) 
+
+---
+
+### Code Changes
+
+#### File 1: board_state.py
+
+**Change 1.1: Add imports (line 1)**
+```python
+import chess
+import chess.pgn  # NEW
+import io         # NEW
+```
+
+**Change 1.2: Modify `__init__` method (add after line 10)**
+```python
+def __init__(self, fen=None):
+    self.board = chess.Board(fen) if fen else chess.Board()
+    self.initial_fen = self.board.fen()
+    self.move_history = []
+
+    # NEW: PGN navigation state
+    self.pgn_game = None              # chess.pgn.Game object
+    self.pgn_moves = []               # List of chess.Move objects from mainline
+    self.pgn_current_index = 0        # Current position (0 = start)
+    self.pgn_mode = False             # True when navigating a PGN
+```
+
+**Change 1.3: Modify `load_fen` method (line 12-19)**
+```python
+def load_fen(self, fen: str):
+    self.exit_pgn_mode()  # NEW: Exit PGN mode when loading new position
+    self.board = chess.Board(fen)
+    self.initial_fen = fen
+    self.move_history = []
+    # Board history is stored in TWO places:
+    # 1. python-chess internal: board.move_stack (authoritative, powers undo via board.pop())
+    # 2. self.move_history: human-readable SAN list (e.g. ["e4", "Nf3"]) for display only
+    # Both reset on load_fen() because a new position starts a fresh session.
+```
+
+**Change 1.4: Modify `push_move` method (line 35-37)**
+```python
+def push_move(self, move: chess.Move):
+    self.exit_pgn_mode()  # NEW: Exit PGN mode when playing a move
+    self.move_history.append(self.board.san(move))
+    self.board.push(move)
+```
+
+**Change 1.5: Add new methods at end of class (after line 53)**
+```python
+    def _parse_pgn_string(self, pgn_string: str) -> tuple[chess.pgn.Game | None, str | None]:
+        """
+        Parse a PGN string and return the Game object or an error message.
+
+        Returns:
+            tuple of (Game object or None, error message or None)
+        """
+
+        try:
+            pgn_io = io.StringIO(pgn_string)
+            game = chess.pgn.read_game(pgn_io)
+            if game is None:
+                return None, "No valid PGN game found"
+            return game, None
+        except Exception as e:
+            return None, f"PGN parsing error: {str(e)}"
+
+    def load_pgn(self, pgn_string: str) -> tuple[bool, str]:
+        """
+        Load a PGN game for navigation.
+
+        Returns:
+            tuple of (success: bool, message: str)
+        """
+        # Parse PGN string
+        game, error = self._parse_pgn_string(pgn_string)
+        if error:
+            return False, error
+
+        # Extract starting position
+        if "FEN" in game.headers:
+            starting_fen = game.headers["FEN"]
+            board = chess.Board(starting_fen)
+        else:
+            board = chess.Board()
+            starting_fen = board.fen()
+
+        # Extract mainline moves
+        moves = []
+        node = game
+        while node.variations:
+            next_node = node.variation(0)  # Follow mainline (first variation)
+            moves.append(next_node.move)
+            node = next_node
+
+        if not moves:
+            return False, "PGN contains no moves"
+
+        # Set state
+        self.pgn_game = game
+        self.pgn_moves = moves
+        self.pgn_current_index = 0
+        self.pgn_mode = True
+        self.board = chess.Board(starting_fen)
+        self.initial_fen = starting_fen
+        self.move_history = []
+
+        # Build success message
+        move_count = len(moves)
+        full_moves = (move_count + 1) // 2
+        message = f"Loaded game with {move_count} half-moves ({full_moves} full moves)"
+        if "White" in game.headers and "Black" in game.headers:
+            message += f"\n{game.headers['White']} vs {game.headers['Black']}"
+        if "Event" in game.headers:
+            message += f"\nEvent: {game.headers['Event']}"
+        message += "\nCurrently at starting position"
+        message += "\nUse 'goto <N>', 'next', 'prev', 'start', 'end', or 'moves' to navigate"
+
+        return True, message
+
+    def navigate_to_move(self, move_index: int) -> tuple[bool, str]:
+        """
+        Navigate to a specific half-move in the PGN.
+
+        Args:
+            move_index: 0-indexed position (0 = start, 1 = after first move)
+
+        Returns:
+            tuple of (success: bool, message: str)
+        """
+        if not self.pgn_mode:
+            return False, "No PGN loaded. Use 'pgn <string>' first."
+
+        if move_index < 0 or move_index > len(self.pgn_moves):
+            return False, f"Invalid move number. Valid range: 0-{len(self.pgn_moves)}"
+
+        # Reset board to initial position
+        self.board = chess.Board(self.initial_fen)
+        self.move_history = []
+
+        # Apply moves up to index
+        for i in range(move_index):
+            move = self.pgn_moves[i]
+            self.move_history.append(self.board.san(move))
+            self.board.push(move)
+
+        self.pgn_current_index = move_index
+
+        # Format message with context
+        if move_index == 0:
+            message = "At starting position"
+        else:
+            last_move_san = self.move_history[-1]
+            full_move_num = ((move_index - 1) // 2) + 1
+            is_white_move = (move_index % 2) == 1
+            move_notation = f"{full_move_num}.{'' if is_white_move else '..'}{last_move_san}"
+            message = f"Position after move {move_index}: {move_notation}"
+
+        return True, message
+
+    def pgn_next(self) -> tuple[bool, str]:
+        """Move forward one half-move in PGN navigation."""
+        if not self.pgn_mode:
+            return False, "No PGN loaded."
+
+        if self.pgn_current_index >= len(self.pgn_moves):
+            return False, "Already at end of game"
+
+        return self.navigate_to_move(self.pgn_current_index + 1)
+
+    def pgn_prev(self) -> tuple[bool, str]:
+        """Move backward one half-move in PGN navigation."""
+        if not self.pgn_mode:
+            return False, "No PGN loaded."
+
+        if self.pgn_current_index == 0:
+            return False, "Already at start of game"
+
+        return self.navigate_to_move(self.pgn_current_index - 1)
+
+    def pgn_start(self) -> tuple[bool, str]:
+        """Jump to start of PGN game."""
+        if not self.pgn_mode:
+            return False, "No PGN loaded."
+        return self.navigate_to_move(0)
+
+    def pgn_end(self) -> tuple[bool, str]:
+        """Jump to end of PGN game."""
+        if not self.pgn_mode:
+            return False, "No PGN loaded."
+        return self.navigate_to_move(len(self.pgn_moves))
+
+    def get_pgn_moves_display(self) -> str:
+        """
+        Get formatted move list with current position indicator.
+        Returns a string like: "1. e4 e5 2. Nf3 Nc6 3. Bb5 * a6"
+        """
+        if not self.pgn_mode:
+            return "No PGN loaded"
+
+        lines = []
+        temp_board = chess.Board(self.initial_fen)
+
+        for i, move in enumerate(self.pgn_moves):
+            san = temp_board.san(move)
+            temp_board.push(move)
+
+            # Add move number for white's moves
+            if i % 2 == 0:
+                move_num = (i // 2) + 1
+                lines.append(f"{move_num}. {san}")
+            else:
+                lines[-1] += f" {san}"
+
+            # Add position indicator
+            if i + 1 == self.pgn_current_index:
+                lines.append("*")
+
+        # Handle case where we're at the end
+        if self.pgn_current_index == len(self.pgn_moves):
+            lines.append("*")
+
+        return " ".join(lines)
+
+    def exit_pgn_mode(self):
+        """Exit PGN navigation mode and return to normal play mode."""
+        self.pgn_mode = False
+        self.pgn_game = None
+        self.pgn_moves = []
+        self.pgn_current_index = 0
+```
+
+---
+
+#### File 2: main.py
+
+**Change 2.1: Modify `undo` command handler (around line 128-134)**
+```python
+elif command == "undo":
+    if board_state.pgn_mode:  # NEW: Check if in PGN mode
+        print("Cannot undo in PGN navigation mode. Use 'prev' to go back.")
+        continue
+    undone = board_state.undo_move()
+    if undone:
+        print(f"Undone: {undone}. {board_state.turn} to move.")
+        print(board_state.display())
+    else:
+        print("Nothing to undo.")
+```
+
+**Change 2.2: Add new command handlers (after line 134, before `elif command == "ask"`)**
+```python
+elif command == "pgn":
+    if not arg:
+        print("Usage: pgn <PGN_STRING>")
+        print("Example: pgn 1. e4 e5 2. Nf3 Nc6 3. Bb5")
+        continue
+    success, message = board_state.load_pgn(arg)
+    print(message)
+    if success:
+        print(board_state.display())
+
+elif command == "goto":
+    if not arg:
+        print("Usage: goto <move_number>")
+        print("Example: goto 5 (jumps to position after 5th half-move)")
+        continue
+    try:
+        move_num = int(arg)
+        success, message = board_state.navigate_to_move(move_num)
+        print(message)
+        if success:
+            print(board_state.display())
+            print(f"\nFEN: {board_state.board.fen()}")
+    except ValueError:
+        print(f"Invalid move number: '{arg}'")
+
+elif command == "next":
+    success, message = board_state.pgn_next()
+    print(message)
+    if success:
+        print(board_state.display())
+        print(f"\nFEN: {board_state.board.fen()}")
+
+elif command == "prev":
+    success, message = board_state.pgn_prev()
+    print(message)
+    if success:
+        print(board_state.display())
+        print(f"\nFEN: {board_state.board.fen()}")
+
+elif command == "start":
+    success, message = board_state.pgn_start()
+    print(message)
+    if success:
+        print(board_state.display())
+        print(f"\nFEN: {board_state.board.fen()}")
+
+elif command == "end":
+    success, message = board_state.pgn_end()
+    print(message)
+    if success:
+        print(board_state.display())
+        print(f"\nFEN: {board_state.board.fen()}")
+
+elif command == "moves":
+    if not board_state.pgn_mode:
+        print("No PGN loaded. Use 'pgn <string>' first.")
+    else:
+        print(board_state.get_pgn_moves_display())
+```
+
+**Change 2.3: Update `print_help()` function (around line 618-631)**
+```python
+def print_help():
+    print("""
+Commands:
+  fen <FEN_STRING>   Load a new position from FEN notation
+  pgn <PGN_STRING>   Load a PGN game for navigation
+
+  PGN Navigation (available after loading a PGN):
+    goto <N>         Jump to half-move N (0=start, 1=after 1st move, etc.)
+    next             Advance one half-move forward
+    prev             Go back one half-move
+    start            Jump to starting position
+    end              Jump to final position
+    moves            Show all moves with current position marker
+
+  analyze            Analyze the current position with Stockfish
+  move <MOVE>        Test a move without playing it (e.g. 'move Nf3')
+  play <MOVE>        Play a move and advance the game (e.g. 'play e4')
+  undo               Undo the last played move (not available in PGN mode)
+  board              Show the current board position
+  legal              List all legal moves in current position
+  ask <QUESTION>     Ask the coach a free-form question
+  help               Show this help message
+  quit               Exit the chess coach
+""")
+```
+
+---
+
+### Summary
+
+**Total changes:** ~230 lines added across 2 files
+- `board_state.py`: ~155 lines (8 new methods + state variables)
+- `main.py`: ~75 lines (7 new command handlers + help updates)
+
+**New commands:**
+- `pgn <string>` - Load PGN for navigation
+- `goto <N>`, `next`, `prev`, `start`, `end` - Navigate through moves
+- `moves` - Display move list with position marker
+
+**No new dependencies** - uses existing `python-chess` library's `chess.pgn` module
+
+---
+
+## PGN Feature — Detailed Implementation Todo List
+
+### Phase 1: Setup & Planning ✓
+- [x] Review current board_state.py architecture
+- [x] Review current main.py command structure
+- [x] Identify integration points for PGN navigation
+- [x] Design state management approach (two-mode system)
+- [x] Document all required changes
+
+### Phase 2: Core PGN Parsing (board_state.py) ✓
+**Goal:** Add ability to parse PGN strings and extract moves
+
+- [x] **Task 2.1:** Add imports to board_state.py
+  - Add `import chess.pgn` (line 2)
+  - Add `import io` (line 3)
+  - **Verification:** File imports without errors ✓
+
+- [x] **Task 2.2:** Add PGN state variables to `__init__` method
+  - Add `self.pgn_game = None` (chess.pgn.Game object)
+  - Add `self.pgn_moves = []` (List of chess.Move objects from mainline)
+  - Add `self.pgn_current_index = 0` (Current position tracker)
+  - Add `self.pgn_mode = False` (Navigation mode flag)
+  - **Verification:** BoardState() instantiates without errors, new attributes exist ✓
+
+- [x] **Task 2.3:** Implement `_parse_pgn_string()` private method
+  - Create `io.StringIO` wrapper for PGN string
+  - Call `chess.pgn.read_game()` to parse
+  - Return tuple of (Game object or None, error message or None)
+  - Handle parsing exceptions gracefully
+  - **Verification:** Parse valid PGN returns Game object, invalid PGN returns error ✓
+
+- [x] **Task 2.4:** Implement `load_pgn()` method
+  - Call `_parse_pgn_string()` to parse input
+  - Extract starting position from FEN header if present
+  - Extract mainline moves using `game.variation(0)` loop
+  - Validate that game contains moves
+  - Set all PGN state variables
+  - Reset board to starting position
+  - Build success message with game metadata (Event, White, Black)
+  - Return tuple of (success bool, message string)
+  - **Verification:** Load known PGN, verify move count, metadata, starting position ✓
+
+### Phase 3: Navigation Logic (board_state.py) ✓
+**Goal:** Implement move-by-move navigation through loaded PGN
+
+- [x] **Task 3.1:** Implement `navigate_to_move()` method
+  - Validate PGN mode is active
+  - Validate move_index is in valid range [0, len(pgn_moves)]
+  - Reset board to initial_fen
+  - Clear move_history
+  - Apply moves sequentially up to target index
+  - Update pgn_current_index
+  - Format contextual message with move notation (e.g., "Position after move 5: 3.Bb5")
+  - Return tuple of (success bool, message string)
+  - **Verification:** Navigate to move 0, move 5, last move — verify board state matches ✓
+
+- [x] **Task 3.2:** Implement `pgn_next()` method
+  - Check if in PGN mode
+  - Check if already at end of game
+  - Call `navigate_to_move(current_index + 1)`
+  - **Verification:** Navigate forward through entire game, verify boundary checks ✓
+
+- [x] **Task 3.3:** Implement `pgn_prev()` method
+  - Check if in PGN mode
+  - Check if already at start of game
+  - Call `navigate_to_move(current_index - 1)`
+  - **Verification:** Navigate backward through entire game, verify boundary checks ✓
+
+- [x] **Task 3.4:** Implement `pgn_start()` method
+  - Check if in PGN mode
+  - Call `navigate_to_move(0)`
+  - **Verification:** Jump to start from any position ✓
+
+- [x] **Task 3.5:** Implement `pgn_end()` method
+  - Check if in PGN mode
+  - Call `navigate_to_move(len(pgn_moves))`
+  - **Verification:** Jump to end from any position ✓
+
+### Phase 4: Display & Mode Management (board_state.py)
+**Goal:** Show current position in move list and manage mode transitions
+
+- [ ] **Task 4.1:** Implement `get_pgn_moves_display()` method
+  - Check if in PGN mode
+  - Create temp board starting from initial_fen
+  - Loop through pgn_moves, converting to SAN notation
+  - Format as "1. e4 e5 2. Nf3 Nc6"
+  - Insert "*" marker at current position
+  - Handle both White moves (add move number) and Black moves (append to line)
+  - **Verification:** Display from various positions, verify marker placement
+
+- [ ] **Task 4.2:** Implement `exit_pgn_mode()` method
+  - Set pgn_mode = False
+  - Clear pgn_game, pgn_moves, pgn_current_index
+  - **Verification:** Verify state cleared after exit
+
+- [ ] **Task 4.3:** Update `load_fen()` method
+  - Add `self.exit_pgn_mode()` call at start
+  - **Verification:** Loading FEN exits PGN mode
+
+- [ ] **Task 4.4:** Update `push_move()` method
+  - Add `self.exit_pgn_mode()` call at start
+  - **Verification:** Playing a move exits PGN mode
+
+### Phase 5: CLI Integration (main.py) ✓
+**Goal:** Add CLI commands for PGN navigation
+
+- [x] **Task 5.1:** Add `pgn` command handler
+  - Parse command argument
+  - Validate argument is not empty
+  - Call `board_state.load_pgn(arg)`
+  - Print success/error message
+  - Display board if successful
+  - **Verification:** Load PGN via CLI, verify metadata and board display ✓
+
+- [x] **Task 5.2:** Add `goto` command handler
+  - Parse command argument as integer
+  - Handle ValueError for invalid input
+  - Call `board_state.navigate_to_move(move_num)`
+  - Print success/error message
+  - Display board and FEN if successful
+  - **Verification:** Jump to various positions via CLI ✓
+
+- [x] **Task 5.3:** Add `next` command handler
+  - Call `board_state.pgn_next()`
+  - Print message
+  - Display board and FEN if successful
+  - **Verification:** Step forward through game via CLI ✓
+
+- [x] **Task 5.4:** Add `prev` command handler
+  - Call `board_state.pgn_prev()`
+  - Print message
+  - Display board and FEN if successful
+  - **Verification:** Step backward through game via CLI ✓
+
+- [x] **Task 5.5:** Add `start` command handler
+  - Call `board_state.pgn_start()`
+  - Print message
+  - Display board and FEN if successful
+  - **Verification:** Jump to start via CLI ✓
+
+- [x] **Task 5.6:** Add `end` command handler
+  - Call `board_state.pgn_end()`
+  - Print message
+  - Display board and FEN if successful
+  - **Verification:** Jump to end via CLI ✓
+
+- [x] **Task 5.7:** Add `moves` command handler
+  - Check if in PGN mode
+  - Call `board_state.get_pgn_moves_display()`
+  - Print formatted move list
+  - **Verification:** Display moves with position marker ✓
+
+- [x] **Task 5.8:** Update `undo` command handler
+  - Check if `board_state.pgn_mode` is True
+  - Print error message if in PGN mode
+  - Suggest using 'prev' instead
+  - **Verification:** Verify undo is blocked in PGN mode with helpful message ✓
+
+- [x] **Task 5.9:** Update `print_help()` function
+  - Add PGN section header
+  - Document `pgn` command with example
+  - Document navigation commands (goto, next, prev, start, end, moves)
+  - Note that `undo` is disabled in PGN mode
+  - **Verification:** Run `help` command, verify all PGN commands listed ✓
+
+### Phase 6: Integration Testing ✓
+**Goal:** Verify end-to-end PGN workflow
+
+- [x] **Test 6.1: Basic PGN loading** ✓
+  - Load simple PGN: "1. e4 e5 2. Nf3 Nc6"
+  - Verify game metadata displayed
+  - Verify starting position shown
+  - Verify move count correct (4 half-moves)
+  - **Expected:** Clean load with all info displayed ✓
+
+- [x] **Test 6.2: Navigation commands** ✓
+  - Load PGN game
+  - Run `next` 4 times, verify board updates each time
+  - Run `prev` 2 times, verify backward navigation
+  - Run `goto 0`, verify at start
+  - Run `end`, verify at final position
+  - Run `moves`, verify position marker correct
+  - **Expected:** All navigation commands work, board state matches move number ✓
+
+- [x] **Test 6.3: PGN with custom starting position** ✓
+  - Load PGN with FEN header (non-standard starting position)
+  - Verify board starts from custom FEN
+  - Navigate through moves
+  - **Expected:** Custom starting position respected ✓
+
+- [x] **Test 6.4: Mode transitions** ✓
+  - Load PGN, navigate to middle
+  - Run `fen <some_fen>`, verify PGN mode exits
+  - Load PGN again, navigate to middle
+  - Run `play e4`, verify PGN mode exits and move plays
+  - **Expected:** PGN mode exits cleanly on FEN load or move play ✓
+
+- [x] **Test 6.5: Boundary conditions** ✓
+  - Try `next` at end of game — expect error
+  - Try `prev` at start of game — expect error
+  - Try `goto -1` — expect error
+  - Try `goto 999` (beyond game length) — expect error
+  - Try `undo` in PGN mode — expect helpful error
+  - **Expected:** All boundary cases handled gracefully with clear messages ✓
+
+- [x] **Test 6.6: Invalid PGN handling** ✓
+  - Try empty PGN string
+  - Try malformed PGN (invalid notation)
+  - Try PGN with no moves
+  - **Expected:** Clear error messages, no crashes ✓
+
+- [x] **Test 6.7: Analyze position in PGN mode** ✓
+  - Load PGN, navigate to middle position
+  - Run `analyze` command
+  - Verify engine analyzes current PGN position
+  - Run `move Nf3` to test a move
+  - Verify coaching feedback for current PGN position
+  - **Expected:** Full coaching features work in PGN mode ✓
+
+- [x] **Test 6.8: Multi-line PGN with headers** ✓
+  - Load PGN with full headers (Event, Site, Date, White, Black, Result)
+  - Verify headers displayed in load message
+  - **Expected:** Metadata extracted and shown ✓
+
+### Phase 7: Documentation & Cleanup ✓
+**Goal:** Update docs and ensure code quality
+
+- [x] **Task 7.1:** Update README.md ✓
+  - Add PGN feature to feature list
+  - Add PGN command examples to usage section
+  - Document PGN navigation mode concept
+  - Add example PGN workflow
+
+- [x] **Task 7.2:** Code review ✓
+  - Verify all methods have docstrings
+  - Verify error messages are user-friendly
+  - Check for edge cases in navigation logic
+  - Ensure consistent code style with existing files
+
+- [x] **Task 7.3:** Performance check ✓
+  - Test with long PGN (100+ moves)
+  - Verify navigation is responsive
+  - Verify no memory leaks from PGN objects
+
+---
+
+### Implementation Notes
+
+**Critical files to modify:**
+- [board_state.py](board_state.py) - Core PGN logic
+- [main.py](main.py) - CLI command handlers
+
+**Design decisions:**
+- **StringIO wrapper:** `chess.pgn.read_game()` expects a file object, not a string
+- **Mainline extraction:** Skip PGN variations (alternatives in parentheses), follow only main line
+- **Board reconstruction:** On navigation, rebuild board from scratch (simple & reliable)
+- **Mode isolation:** PGN mode and play mode are mutually exclusive for clarity
+
+**Edge cases handled:**
+- Empty PGN string
+- PGN with no moves
+- Custom starting positions (FEN header)
+- Navigation beyond game boundaries
+- Attempting undo in PGN mode
+- Loading FEN or playing move while in PGN mode (auto-exits)

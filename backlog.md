@@ -1,5 +1,8 @@
 # Prompt refinement
 1. The coach prompt needs to be modified so that the coach asks questions first, waits for a response or for the player to move a piece and then gives feedback. If player responds or makes a good/excellent/best move, the coach should say good job and ask the player to explain why they did that.
 
-#Game engine
+# Game engine
 1. 
+
+# Automated testing
+1. Testing for full functionality with simulated games

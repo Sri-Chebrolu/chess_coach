@@ -1,3 +1,73 @@
 test case #1
 https://www.chess.com/analysis/game/live/164568136554/analysis?move=10
 r2qkb1r/ppp2ppp/2n1pn2/3p1b2/3P1B2/2P1PN2/PP1N1PPP/R2QKB1R b KQkq - 2 6
+
+
+game end
+[Event "Live Chess"]
+[Site "Chess.com"]
+[Date "2026.02.12"]
+[Round "-"]
+[White "Day305"]
+[Black "sri8281"]
+[Result "1-0"]
+[CurrentPosition "5rk1/p1p2pQp/2b1p3/4P3/3p4/2P1P3/P4P1P/4K1R1 b - - 0 24"]
+[Timezone "UTC"]
+[ECO "D02"]
+[ECOUrl "https://www.chess.com/openings/Queens-Pawn-Opening-Zukertort-Chigorin-Variation-3.Bf4-Bf5-4.e3-e6"]
+[UTCDate "2026.02.12"]
+[UTCTime "02:46:29"]
+[WhiteElo "906"]
+[BlackElo "895"]
+[TimeControl "600"]
+[Termination "Day305 won by checkmate"]
+[StartTime "02:46:29"]
+[EndDate "2026.02.12"]
+[EndTime "02:53:57"]
+[Link "https://www.chess.com/analysis/game/live/164568136554/analysis?move=46"]
+[WhiteUrl "https://images.chesscomfiles.com/uploads/v1/user/121177548.9780de0e.50x50o.e3c5b1ad1155.jpeg"]
+[WhiteCountry "2"]
+[WhiteTitle ""]
+[BlackUrl "https://images.chesscomfiles.com/uploads/v1/user/59701722.b21f21ac.50x50o.94cece387e32.jpg"]
+[BlackCountry "2"]
+[BlackTitle ""]
+
+1. d4 d5 2. Nf3 Nc6 3. Bf4 Bf5 4. e3 e6 5. c3 Nf6 6. Nbd2 Bd6 7. Bg3 Qd7 8. Qb3
+O-O 9. Qxb7 Rab8 10. Qa6 Rb6 11. Qa4 Rxb2 12. Nb3 Rb1+ 13. Rxb1 Bxb1 14. Nbd2
+Bf5 15. Ne5 Bxe5 16. dxe5 Ne4 17. Nxe4 Bxe4 18. Bb5 Bxg2 19. Rg1 Bf3 20. Bxc6
+Qe7 21. Bh4 Qxh4 22. Qxh4 d4 23. Qg3 Bxc6 24. Qxg7# 1-0
+
+game start
+[Event "Live Chess"]
+[Site "Chess.com"]
+[Date "2026.02.12"]
+[Round "-"]
+[White "Day305"]
+[Black "sri8281"]
+[Result "1-0"]
+[CurrentPosition "5rk1/p1p2pQp/2b1p3/4P3/3p4/2P1P3/P4P1P/4K1R1 b - - 0 24"]
+[Timezone "UTC"]
+[ECO "D02"]
+[ECOUrl "https://www.chess.com/openings/Queens-Pawn-Opening-Zukertort-Chigorin-Variation-3.Bf4-Bf5-4.e3-e6"]
+[UTCDate "2026.02.12"]
+[UTCTime "02:46:29"]
+[WhiteElo "906"]
+[BlackElo "895"]
+[TimeControl "600"]
+[Termination "Day305 won by checkmate"]
+[StartTime "02:46:29"]
+[EndDate "2026.02.12"]
+[EndTime "02:53:57"]
+[Link "https://www.chess.com/analysis/game/live/164568136554/analysis?move=10"]
+[WhiteUrl "https://images.chesscomfiles.com/uploads/v1/user/121177548.9780de0e.50x50o.e3c5b1ad1155.jpeg"]
+[WhiteCountry "2"]
+[WhiteTitle ""]
+[BlackUrl "https://images.chesscomfiles.com/uploads/v1/user/59701722.b21f21ac.50x50o.94cece387e32.jpg"]
+[BlackCountry "2"]
+[BlackTitle ""]
+
+1. d4 d5 2. Nf3 Nc6 3. Bf4 Bf5 4. e3 e6 5. c3 Nf6 6. Nbd2 Bd6 7. Bg3 Qd7 8. Qb3
+O-O 9. Qxb7 Rab8 10. Qa6 Rb6 11. Qa4 Rxb2 12. Nb3 Rb1+ 13. Rxb1 Bxb1 14. Nbd2
+Bf5 15. Ne5 Bxe5 16. dxe5 Ne4 17. Nxe4 Bxe4 18. Bb5 Bxg2 19. Rg1 Bf3 20. Bxc6
+Qe7 21. Bh4 Qxh4 22. Qxh4 d4 23. Qg3 Bxc6 24. Qxg7# 1-0
+

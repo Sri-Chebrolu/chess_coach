@@ -95,8 +95,17 @@ class Coach:
         """Handle free-form follow-up questions with conversation context."""
         return self._send(question)
 
+    MAX_HISTORY = 20
+
+    def prune_history(self):
+        if len(self.conversation_history) > self.MAX_HISTORY:
+            initial = self.conversation_history[0:2]
+            recent = self.conversation_history[-(self.MAX_HISTORY - 2):]
+            self.conversation_history = initial + recent
+
     def _send(self, user_message: str) -> str:
         self.conversation_history.append({"role": "user", "content": user_message})
+        self.prune_history()
         logger.debug("PROMPT SENT TO CLAUDE:\n%s", user_message)
 
         max_retries = 3

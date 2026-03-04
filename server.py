@@ -1,6 +1,7 @@
 import uuid
 import logging
 import asyncio
+import time
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -69,6 +70,14 @@ def err_response(code: str, message: str, request_id: str, status: int = 400) ->
         content={"ok": False, "data": None, "error": {"code": code, "message": message}, "request_id": request_id},
         headers={"X-Request-Id": request_id},
     )
+
+
+async def run_blocking(label: str, func, *args, **kwargs):
+    started = time.perf_counter()
+    result = await asyncio.to_thread(func, *args, **kwargs)
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    logger.info("%s completed in %.1fms", label, elapsed_ms)
+    return result
 
 
 # ─── App lifecycle ────────────────────────────────────────────────────────────
@@ -186,7 +195,7 @@ async def analyze(req: AnalyzeRequest, request: Request):
             return err_response("INVALID_FEN", str(e), request_id)
 
     try:
-        top_moves = engine.analyze_position(bs.board, num_moves=3)
+        top_moves = await run_blocking("engine.analyze_position", engine.analyze_position, bs.board, 3)
     except Exception as e:
         logger.error("Engine error: %s", e)
         return err_response("ENGINE_TIMEOUT", str(e), request_id)
@@ -196,7 +205,9 @@ async def analyze(req: AnalyzeRequest, request: Request):
     heuristics_str = format_heuristics_for_prompt(heuristics)
 
     try:
-        coach_response = coach.analyze_position(
+        coach_response = await run_blocking(
+            "coach.analyze_position",
+            coach.analyze_position,
             fen=bs.board.fen(),
             turn=bs.turn,
             top_moves_str=top_moves_str,
@@ -248,7 +259,7 @@ async def move(req: MoveRequest, request: Request):
     move_san = bs.board.san(parsed_move)
 
     try:
-        top_moves = engine.analyze_position(bs.board, num_moves=3)
+        top_moves = await run_blocking("engine.analyze_position", engine.analyze_position, bs.board, 3)
     except Exception as e:
         return err_response("ENGINE_TIMEOUT", str(e), request_id)
 
@@ -258,7 +269,7 @@ async def move(req: MoveRequest, request: Request):
     board_after = bs.board.copy()
     board_after.push(parsed_move)
     try:
-        user_move_analysis = engine.analyze_position(board_after, num_moves=1)
+        user_move_analysis = await run_blocking("engine.analyze_position", engine.analyze_position, board_after, 1)
     except Exception as e:
         return err_response("ENGINE_TIMEOUT", str(e), request_id)
 
@@ -272,7 +283,9 @@ async def move(req: MoveRequest, request: Request):
     delta = user_score - best_score
 
     try:
-        coach_response = coach.compare_moves(
+        coach_response = await run_blocking(
+            "coach.compare_moves",
+            coach.compare_moves,
             fen=req.fen,
             turn=bs.turn,
             best_move=best["san"],
@@ -294,6 +307,7 @@ async def move(req: MoveRequest, request: Request):
         "valid": True,
         "fen_after": bs.board.fen(),
         "turn_after": bs.turn,
+        "pgn_mode": bs.pgn_mode,
         "user_move": {"san": move_san, "score_cp": user_score, "mate": user_move_analysis[0]["mate"] if user_move_analysis else None},
         "best_move": {"san": best["san"], "score_cp": best_score, "mate": best["mate"]},
         "delta_cp": delta,
@@ -321,7 +335,7 @@ async def chat(req: ChatRequest, request: Request):
         return err_response("INVALID_FEN", str(e), request_id)
 
     try:
-        response = session["coach"].followup(enriched)
+        response = await run_blocking("coach.followup", session["coach"].followup, enriched)
     except Exception as e:
         return err_response("LLM_CONNECTION_ERROR", str(e), request_id)
 

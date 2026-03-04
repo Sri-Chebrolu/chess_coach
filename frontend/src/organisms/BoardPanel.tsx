@@ -31,7 +31,7 @@ interface BoardPanelProps {
   onPgnNavigate: (pgn: PgnNav, fen: string, turn: 'White' | 'Black') => void
 }
 
-function getPvArrows(topMoves: EngineMove[], fen: string): [string, string, string][] {
+function getPvArrows(topMoves: EngineMove[], fen: string) {
   if (!topMoves.length || !topMoves[0].pv.length) return []
   try {
     const game = new Chess(fen)
@@ -148,7 +148,7 @@ export function BoardPanel({
             }}
             customDarkSquareStyle={{ backgroundColor: '#769656' }}
             customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
-            customArrows={pvArrows}
+            customArrows={pvArrows as Parameters<typeof Chessboard>[0]['customArrows']}
             customSquareStyles={customSquareStyles}
             animationDuration={200}
           />

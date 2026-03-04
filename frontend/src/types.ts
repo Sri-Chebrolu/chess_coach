@@ -81,7 +81,7 @@ export type AppState =
   | { view: 'analysis'; data: AnalysisViewState }
 
 export type AppAction =
-  | { type: 'SUBMIT' }
+  | { type: 'SUBMIT'; abortController: AbortController }
   | { type: 'SET_ABORT'; abortController: AbortController }
   | { type: 'SET_LOADING_STEP'; step: 'validating' | 'engine' | 'coach' }
   | { type: 'ANALYSIS_READY'; data: AnalysisViewState }

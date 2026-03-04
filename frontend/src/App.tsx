@@ -11,7 +11,7 @@ import type { AppState, AppAction, AnalysisViewState, ChatMessage, EngineMove, P
 function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'SUBMIT':
-      return { view: 'loading', step: 'validating', abortController: new AbortController() }
+      return { view: 'loading', step: 'validating', abortController: action.abortController }
 
     case 'SET_LOADING_STEP':
       if (state.view !== 'loading') return state
@@ -114,21 +114,8 @@ export default function App() {
   const [state, dispatch] = useReducer(reducer, { view: 'input' })
 
   const handleSubmit = useCallback(async (fen: string, pgn: string) => {
-    dispatch({ type: 'SUBMIT' })
     const ctrl = new AbortController()
-
-    // We need the abortController in state — SUBMIT creates one, but we need the same reference
-    // So we use a local ref and dispatch SET_ABORT workaround: just use the one from state after SUBMIT
-    // Actually: dispatch SUBMIT sets a new AbortController in state. We can't access it synchronously.
-    // Solution: create the controller before dispatch and pass it.
-    // Restructure: set loading state with existing abort controller via a side effect.
-    // Simplest fix: track abort controller in a ref, not in state.
-
-    // Note: the AbortController in the reducer state is used by RESET/ERROR to abort in-flight requests.
-    // Since we can't use the state one synchronously here, we use a local ctrl and call dispatch with it.
-    // For cancel to work, we dispatch RESET which aborts state.abortController — they're different objects.
-    // Fix: inject ctrl into state via a SET_ABORT action, or redesign.
-    // Pragmatic solution for v1: use a module-level ref.
+    dispatch({ type: 'SUBMIT', abortController: ctrl })
 
     try {
       dispatch({ type: 'SET_LOADING_STEP', step: 'validating' })

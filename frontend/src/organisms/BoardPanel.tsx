@@ -12,6 +12,7 @@ interface MoveResponse {
   valid: boolean
   fen_after: string
   turn_after: 'White' | 'Black'
+  pgn_mode: boolean
   user_move: { san: string; score_cp: number; mate: number | null }
   best_move: { san: string; score_cp: number; mate: number | null }
   delta_cp: number
@@ -29,6 +30,7 @@ interface BoardPanelProps {
   onTopMovesChange: (moves: EngineMove[]) => void
   onCoachMessage: (message: ChatMessage) => void
   onSetThinking: (thinking: boolean) => void
+  onPgnChange: (pgn: PgnNav | null) => void
   onPgnNavigate: (pgn: PgnNav, fen: string, turn: 'White' | 'Black') => void
 }
 
@@ -54,12 +56,17 @@ export function BoardPanel({
   onTopMovesChange,
   onCoachMessage,
   onSetThinking,
+  onPgnChange,
   onPgnNavigate,
 }: BoardPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [boardWidth, setBoardWidth] = useState(480)
+  const [boardOrientation, setBoardOrientation] = useState<'white' | 'black'>(() => (
+    turn === 'Black' ? 'black' : 'white'
+  ))
   const prevFenRef = useRef(currentFen)
   const [flashSquare, setFlashSquare] = useState<string | null>(null)
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null)
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -82,9 +89,15 @@ export function BoardPanel({
       if (!result) return false
 
       const fenBefore = currentFen
+      const previousPgn = pgn
       prevFenRef.current = fenBefore
       onFenChange(game.fen(), game.turn() === 'w' ? 'White' : 'Black')
+      setSelectedSquare(null)
       onSetThinking(true)
+      if (previousPgn) {
+        // Immediately unlock sideline exploration while backend analysis completes.
+        onPgnChange(null)
+      }
 
       apiFetch<MoveResponse>('/api/move', {
         session_id: sessionId,
@@ -93,7 +106,15 @@ export function BoardPanel({
       })
         .then((res) => {
           if (res.data) {
+            onFenChange(res.data.fen_after, res.data.turn_after)
             onTopMovesChange(res.data.top_moves)
+            if (previousPgn && !res.data.pgn_mode) {
+              onCoachMessage({
+                role: 'system',
+                content: 'Exited PGN history. You are now exploring a sideline.',
+                timestamp: new Date().toISOString(),
+              })
+            }
             onCoachMessage({
               role: 'coach',
               content: res.data.coach_response,
@@ -105,10 +126,12 @@ export function BoardPanel({
           if (err.code === 'INVALID_MOVE') {
             // Revert board
             onFenChange(fenBefore, turn)
+            if (previousPgn) onPgnChange(previousPgn)
             setFlashSquare(sourceSquare)
             setTimeout(() => setFlashSquare(null), 350)
           } else {
             onFenChange(fenBefore, turn)
+            if (previousPgn) onPgnChange(previousPgn)
             onCoachMessage({
               role: 'system',
               content: `Analysis failed: ${err.message}. Try again.`,
@@ -120,20 +143,65 @@ export function BoardPanel({
 
       return true
     },
-    [currentFen, sessionId, turn, onFenChange, onTopMovesChange, onCoachMessage, onSetThinking],
+    [currentFen, sessionId, turn, pgn, onFenChange, onTopMovesChange, onCoachMessage, onSetThinking, onPgnChange],
   )
+
+  const handleSquareClick = useCallback((square: Square) => {
+    const clicked = String(square)
+    const game = new Chess(currentFen)
+
+    if (!selectedSquare) {
+      const piece = game.get(square)
+      if (piece && piece.color === game.turn()) {
+        setSelectedSquare(clicked)
+      }
+      return
+    }
+
+    if (selectedSquare === clicked) {
+      setSelectedSquare(null)
+      return
+    }
+
+    const moved = handlePieceDrop(selectedSquare, clicked)
+    if (moved) {
+      setSelectedSquare(null)
+      return
+    }
+
+    const piece = game.get(square)
+    if (piece && piece.color === game.turn()) {
+      setSelectedSquare(clicked)
+      return
+    }
+    setSelectedSquare(null)
+  }, [currentFen, selectedSquare, handlePieceDrop])
 
   const pvArrows = getPvArrows(topMoves, currentFen)
 
-  const customSquareStyles: Record<string, React.CSSProperties> = flashSquare
-    ? { [flashSquare]: { backgroundColor: 'rgba(204, 68, 68, 0.4)' } }
-    : {}
+  const customSquareStyles: Record<string, React.CSSProperties> = {
+    ...(flashSquare ? { [flashSquare]: { backgroundColor: 'rgba(204, 68, 68, 0.4)' } } : {}),
+    ...(selectedSquare ? { [selectedSquare]: { boxShadow: 'inset 0 0 0 3px rgba(118, 150, 86, 0.85)' } } : {}),
+  }
 
   const evalScore = topMoves[0]?.score_cp ?? 0
   const evalMate = topMoves[0]?.mate ?? null
 
   return (
     <div className="flex flex-col h-full bg-bg-primary overflow-hidden">
+      <div className="px-3 pt-2 flex items-center justify-between border-b border-border-default">
+        <div data-testid="board-orientation-label" className="text-[11px] font-mono uppercase tracking-wide text-text-secondary">
+          Viewing as {boardOrientation === 'white' ? 'White' : 'Black'}
+        </div>
+        <button
+          data-testid="orientation-toggle"
+          onClick={() => setBoardOrientation((prev) => prev === 'white' ? 'black' : 'white')}
+          className="px-2 py-1 text-[11px] font-mono uppercase tracking-wide text-text-secondary hover:text-text-primary transition-colors"
+        >
+          {boardOrientation === 'white' ? 'Flip to Black' : 'Flip to White'}
+        </button>
+      </div>
+
       <div ref={containerRef} className="flex flex-row gap-2 p-3 flex-1 min-h-0">
         <EvalBar scoreCp={evalScore} mate={evalMate} height={boardWidth} data-testid="eval-bar" />
 
@@ -141,8 +209,9 @@ export function BoardPanel({
           <Chessboard
             position={currentFen}
             onPieceDrop={handlePieceDrop}
+            onSquareClick={handleSquareClick}
             boardWidth={boardWidth}
-            boardOrientation={turn === 'Black' ? 'black' : 'white'}
+            boardOrientation={boardOrientation}
             customBoardStyle={{
               border: '1px solid var(--border)',
               boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
@@ -159,7 +228,18 @@ export function BoardPanel({
       {/* PGN Navigator (conditional) */}
       {pgn && (
         <div className="px-3 pb-2">
-          <PgnNavigator sessionId={sessionId} pgn={pgn} onNavigate={onPgnNavigate} />
+          <PgnNavigator
+            sessionId={sessionId}
+            pgn={pgn}
+            onNavigate={onPgnNavigate}
+            onError={(message) => {
+              onCoachMessage({
+                role: 'system',
+                content: message,
+                timestamp: new Date().toISOString(),
+              })
+            }}
+          />
         </div>
       )}
 

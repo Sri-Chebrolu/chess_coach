@@ -203,6 +203,7 @@ export default function App() {
           onTopMovesChange={(topMoves) => dispatch({ type: 'UPDATE_TOP_MOVES', topMoves })}
           onCoachMessage={(message) => dispatch({ type: 'APPEND_CHAT', message })}
           onSetThinking={(thinking) => dispatch({ type: 'SET_COACH_THINKING', thinking })}
+          onPgnChange={(pgn) => dispatch({ type: 'UPDATE_PGN_NAV', pgn })}
           onPgnNavigate={(pgn, fen, turn) => {
             dispatch({ type: 'UPDATE_PGN_NAV', pgn })
             dispatch({ type: 'UPDATE_FEN', fen, turn })

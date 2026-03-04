@@ -66,6 +66,7 @@ export const moveResponse = {
     valid: true,
     fen_after: 'r1bqkbnr/pppppppp/2n5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2',
     turn_after: 'White',
+    pgn_mode: false,
     user_move: { san: 'Nc6', score_cp: -15, mate: null },
     best_move: { san: 'd5', score_cp: 25, mate: null },
     delta_cp: 40,

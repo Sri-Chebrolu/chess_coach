@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
+import type { Square } from 'chess.js'
 import { EvalBar } from '../atoms/EvalBar'
 import { MoveCard } from '../molecules/MoveCard'
 import { PgnNavigator } from './PgnNavigator'
@@ -31,7 +32,7 @@ interface BoardPanelProps {
   onPgnNavigate: (pgn: PgnNav, fen: string, turn: 'White' | 'Black') => void
 }
 
-function getPvArrows(topMoves: EngineMove[], fen: string): [string, string, string][] {
+function getPvArrows(topMoves: EngineMove[], fen: string): [Square, Square, string][] {
   if (!topMoves.length || !topMoves[0].pv.length) return []
   try {
     const game = new Chess(fen)

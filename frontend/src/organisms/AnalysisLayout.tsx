@@ -8,6 +8,7 @@ interface AnalysisLayoutProps {
 export function AnalysisLayout({ boardPanel, coachPanel }: AnalysisLayoutProps) {
   return (
     <div
+      className="analysis-layout"
       style={{
         display: 'grid',
         gridTemplateColumns: '3fr 2fr',

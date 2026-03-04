@@ -8,6 +8,7 @@ interface AnalysisLayoutProps {
 export function AnalysisLayout({ boardPanel, coachPanel }: AnalysisLayoutProps) {
   return (
     <div
+      className="analysis-layout"
       style={{
         display: 'grid',
         gridTemplateColumns: '3fr 2fr',
@@ -21,9 +22,3 @@ export function AnalysisLayout({ boardPanel, coachPanel }: AnalysisLayoutProps) 
     </div>
   )
 }
-
-// Responsive via a style tag — Tailwind media queries don't cover grid-template-columns dynamically
-// Add this to index.css if needed:
-// @media (max-width: 768px) {
-//   .analysis-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-// }

@@ -7,3 +7,5 @@ __pycache__/
 stockfish-macos-m1-apple-silicon.tar
 stockfish/
 .cursor/
+frontend/node_modules/
+frontend/dist/

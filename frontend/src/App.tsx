@@ -1,4 +1,4 @@
-import { useReducer, useCallback } from 'react'
+import { useReducer, useCallback, useRef } from 'react'
 import { InputPanel } from './organisms/InputPanel'
 import { AnalysisLayout } from './organisms/AnalysisLayout'
 import { BoardPanel } from './organisms/BoardPanel'
@@ -112,23 +112,12 @@ function LoadingView({ step, onCancel }: { step: 'validating' | 'engine' | 'coac
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, { view: 'input' })
+  const abortRef = useRef<AbortController | null>(null)
 
   const handleSubmit = useCallback(async (fen: string, pgn: string) => {
-    dispatch({ type: 'SUBMIT' })
     const ctrl = new AbortController()
-
-    // We need the abortController in state — SUBMIT creates one, but we need the same reference
-    // So we use a local ref and dispatch SET_ABORT workaround: just use the one from state after SUBMIT
-    // Actually: dispatch SUBMIT sets a new AbortController in state. We can't access it synchronously.
-    // Solution: create the controller before dispatch and pass it.
-    // Restructure: set loading state with existing abort controller via a side effect.
-    // Simplest fix: track abort controller in a ref, not in state.
-
-    // Note: the AbortController in the reducer state is used by RESET/ERROR to abort in-flight requests.
-    // Since we can't use the state one synchronously here, we use a local ctrl and call dispatch with it.
-    // For cancel to work, we dispatch RESET which aborts state.abortController — they're different objects.
-    // Fix: inject ctrl into state via a SET_ABORT action, or redesign.
-    // Pragmatic solution for v1: use a module-level ref.
+    abortRef.current = ctrl
+    dispatch({ type: 'SUBMIT' })
 
     try {
       dispatch({ type: 'SET_LOADING_STEP', step: 'validating' })
@@ -178,7 +167,17 @@ export default function App() {
       if (err instanceof Error && err.name === 'AbortError') return
       const message = err instanceof ApiError ? err.message : 'Connection failed. Is the backend running?'
       dispatch({ type: 'ERROR', message, prefill: { fen, pgn } })
+    } finally {
+      if (abortRef.current === ctrl) {
+        abortRef.current = null
+      }
     }
+  }, [])
+
+  const handleCancel = useCallback(() => {
+    abortRef.current?.abort()
+    abortRef.current = null
+    dispatch({ type: 'RESET' })
   }, [])
 
   if (state.view === 'input') {
@@ -195,7 +194,7 @@ export default function App() {
     return (
       <LoadingView
         step={state.step}
-        onCancel={() => dispatch({ type: 'RESET' })}
+        onCancel={handleCancel}
       />
     )
   }

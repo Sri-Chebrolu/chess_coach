@@ -5,10 +5,10 @@ import type { Square } from 'chess.js'
 import { EvalBar } from '../atoms/EvalBar'
 import { MoveCard } from '../molecules/MoveCard'
 import { PgnNavigator } from './PgnNavigator'
-import { apiFetch } from '../api'
+import { apiFetch, apiStreamMove } from '../api'
 import type { EngineMove, ChatMessage, PgnNav } from '../types'
 
-interface MoveResponse {
+interface MoveData {
   valid: boolean
   fen_after: string
   turn_after: 'White' | 'Black'
@@ -16,7 +16,6 @@ interface MoveResponse {
   best_move: { san: string; score_cp: number; mate: number | null }
   delta_cp: number
   top_moves: EngineMove[]
-  coach_response: string
 }
 
 interface OpponentMoveResponse {
@@ -36,6 +35,7 @@ interface BoardPanelProps {
   onFenChange: (fen: string, turn: 'White' | 'Black') => void
   onTopMovesChange: (moves: EngineMove[]) => void
   onCoachMessage: (message: ChatMessage) => void
+  onCoachStream: (message: ChatMessage) => void
   onSetThinking: (thinking: boolean) => void
   onPgnNavigate: (pgn: PgnNav, fen: string, turn: 'White' | 'Black') => void
 }
@@ -62,6 +62,7 @@ export function BoardPanel({
   onFenChange,
   onTopMovesChange,
   onCoachMessage,
+  onCoachStream,
   onSetThinking,
   onPgnNavigate,
 }: BoardPanelProps) {
@@ -134,44 +135,62 @@ export function BoardPanel({
       onFenChange(game.fen(), game.turn() === 'w' ? 'White' : 'Black')
       onSetThinking(true)
 
-      apiFetch<MoveResponse>('/api/move', {
+      const coachTokens: string[] = []
+      let moveDataFenAfter = ''
+
+      apiStreamMove<MoveData>('/api/move', {
         session_id: sessionId,
         fen: fenBefore,
         move: result.san,
-      })
-        .then((res) => {
-          if (res.data) {
-            onTopMovesChange(res.data.top_moves)
-            onCoachMessage({
+      }, {
+        onMoveData: (data) => {
+          onTopMovesChange(data.top_moves)
+          moveDataFenAfter = data.fen_after
+        },
+        onCoachToken: (token) => {
+          coachTokens.push(token)
+          onCoachStream({
+            role: 'coach',
+            content: coachTokens.join(''),
+            timestamp: new Date().toISOString(),
+            streaming: true,
+          })
+        },
+        onCoachSkip: () => {
+          onCoachMessage({
+            role: 'coach',
+            content: 'Good move!',
+            timestamp: new Date().toISOString(),
+          })
+        },
+        onDone: () => {
+          // Finalize: replace the streaming message with a non-streaming one
+          if (coachTokens.length > 0) {
+            onCoachStream({
               role: 'coach',
-              content: res.data.coach_response,
-              timestamp: new Date().toISOString(),
-            })
-            // If opponent mode is active, fetch computer's response
-            if (opponentElo) {
-              fetchOpponentMove(res.data.fen_after)
-            }
-          }
-        })
-        .catch((err) => {
-          if (err.code === 'INVALID_MOVE') {
-            onFenChange(fenBefore, turn)
-            setFlashSquare(sourceSquare)
-            setTimeout(() => setFlashSquare(null), 350)
-          } else {
-            onFenChange(fenBefore, turn)
-            onCoachMessage({
-              role: 'system',
-              content: `Analysis failed: ${err.message}. Try again.`,
+              content: coachTokens.join(''),
               timestamp: new Date().toISOString(),
             })
           }
-        })
-        .finally(() => onSetThinking(false))
+          onSetThinking(false)
+          if (opponentElo && moveDataFenAfter) {
+            fetchOpponentMove(moveDataFenAfter)
+          }
+        },
+        onError: (err) => {
+          onFenChange(fenBefore, turn)
+          onCoachMessage({
+            role: 'system',
+            content: `Analysis failed: ${err.message}. Try again.`,
+            timestamp: new Date().toISOString(),
+          })
+          onSetThinking(false)
+        },
+      })
 
       return true
     },
-    [currentFen, sessionId, turn, opponentElo, waitingForOpponent, onFenChange, onTopMovesChange, onCoachMessage, onSetThinking, fetchOpponentMove],
+    [currentFen, sessionId, turn, opponentElo, waitingForOpponent, onFenChange, onTopMovesChange, onCoachMessage, onCoachStream, onSetThinking, fetchOpponentMove],
   )
 
   const pvArrows = getPvArrows(topMoves, currentFen)

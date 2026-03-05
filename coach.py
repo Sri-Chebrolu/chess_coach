@@ -94,6 +94,20 @@ class Coach:
         )
         return self._send(prompt)
 
+    def compare_moves_stream(self, fen, turn, best_move, best_score,
+                             user_move, user_score, delta,
+                             top_moves_str, heuristics_before, heuristics_after):
+        """Streaming variant of compare_moves. Yields text chunks."""
+        prompt = MOVE_COMPARISON_TEMPLATE.format(
+            fen=fen, turn=turn,
+            best_move=best_move, best_score=best_score,
+            user_move=user_move, user_score=user_score, delta=delta,
+            top_moves=top_moves_str,
+            heuristics_before=heuristics_before,
+            heuristics_after=heuristics_after,
+        )
+        yield from self._send_stream(prompt)
+
     def followup(self, question: str) -> str:
         """Handle free-form follow-up questions with conversation context."""
         return self._send(question)
@@ -149,3 +163,30 @@ class Coach:
         )
 
         return assistant_text
+
+    def _send_stream(self, user_message: str):
+        """Streaming variant of _send. Yields text chunks as they arrive."""
+        self.conversation_history.append({"role": "user", "content": user_message})
+        self.prune_history()
+        logger.debug("PROMPT SENT TO CLAUDE (stream):\n%s", user_message)
+
+        try:
+            full_text = []
+            with self.client.messages.stream(
+                model=self.model,
+                max_tokens=300,
+                system=SYSTEM_PROMPT,
+                messages=self.conversation_history,
+            ) as stream:
+                for text in stream.text_stream:
+                    full_text.append(text)
+                    yield text
+
+            assistant_text = "".join(full_text)
+            self.conversation_history.append({"role": "assistant", "content": assistant_text})
+            logger.debug("CLAUDE RESPONSE (stream):\n%s", assistant_text)
+
+        except (anthropic.APIConnectionError, anthropic.APIStatusError, anthropic.RateLimitError) as e:
+            logger.error("Streaming API error: %s", e)
+            self.conversation_history.pop()
+            yield "Coach unavailable. Try again."

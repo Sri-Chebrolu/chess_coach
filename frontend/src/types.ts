@@ -65,6 +65,7 @@ export interface ChatMessage {
   role: 'user' | 'coach' | 'system'
   content: string
   timestamp: string
+  streaming?: boolean
 }
 
 // ─── Application State ───────────────────────────────────────────────────────
@@ -97,6 +98,7 @@ export type AppAction =
   | { type: 'RESET' }
   | { type: 'UPDATE_FEN'; fen: string; turn: 'White' | 'Black' }
   | { type: 'APPEND_CHAT'; message: ChatMessage }
+  | { type: 'STREAM_CHAT'; message: ChatMessage }
   | { type: 'SET_COACH_THINKING'; thinking: boolean }
   | { type: 'UPDATE_TOP_MOVES'; topMoves: EngineMove[] }
   | { type: 'UPDATE_PGN_NAV'; pgn: PgnNav | null }

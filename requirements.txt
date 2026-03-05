@@ -2,4 +2,5 @@ python-chess
 anthropic
 python-dotenv
 fastapi
+sse-starlette
 uvicorn[standard]

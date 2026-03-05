@@ -38,6 +38,17 @@ function reducer(state: AppState, action: AppAction): AppState {
       if (state.view !== 'analysis') return state
       return { ...state, data: { ...state.data, chatMessages: [...state.data.chatMessages, action.message] } }
 
+    case 'STREAM_CHAT': {
+      if (state.view !== 'analysis') return state
+      const msgs = state.data.chatMessages
+      const last = msgs[msgs.length - 1]
+      // Replace last message if it was a streaming coach message
+      if (last?.role === 'coach' && last.streaming) {
+        return { ...state, data: { ...state.data, chatMessages: [...msgs.slice(0, -1), action.message] } }
+      }
+      return { ...state, data: { ...state.data, chatMessages: [...msgs, action.message] } }
+    }
+
     case 'SET_COACH_THINKING':
       if (state.view !== 'analysis') return state
       return { ...state, data: { ...state.data, isCoachThinking: action.thinking } }
@@ -204,6 +215,7 @@ export default function App() {
           onFenChange={(fen, turn) => dispatch({ type: 'UPDATE_FEN', fen, turn })}
           onTopMovesChange={(topMoves) => dispatch({ type: 'UPDATE_TOP_MOVES', topMoves })}
           onCoachMessage={(message) => dispatch({ type: 'APPEND_CHAT', message })}
+          onCoachStream={(message) => dispatch({ type: 'STREAM_CHAT', message })}
           onSetThinking={(thinking) => dispatch({ type: 'SET_COACH_THINKING', thinking })}
           onPgnNavigate={(pgn, fen, turn) => {
             dispatch({ type: 'UPDATE_PGN_NAV', pgn })

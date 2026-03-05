@@ -7,10 +7,12 @@ from dotenv import load_dotenv
 
 load_dotenv()  # Must be before any local imports that read env vars
 
+import json as json_module
 import chess
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel
 
 from board_state import BoardState
@@ -231,8 +233,12 @@ async def analyze(req: AnalyzeRequest, request: Request):
     }, request_id)
 
 
+BEST_MOVE_THRESHOLD = 30  # centipawns — within this delta, consider it "best move"
+
+
 @app.post("/api/move")
 async def move(req: MoveRequest, request: Request):
+    """SSE endpoint: emits move_data, then coach_stream tokens or coach_skip."""
     request_id = str(uuid.uuid4())
     session = get_session(req.session_id)
     if not session:
@@ -260,7 +266,6 @@ async def move(req: MoveRequest, request: Request):
 
     heuristics_before = extract_heuristics(bs.board)
 
-    # Evaluate user's move: analyze position after the move (consistent White perspective)
     board_after = bs.board.copy()
     board_after.push(parsed_move)
     try:
@@ -273,41 +278,54 @@ async def move(req: MoveRequest, request: Request):
     best = top_moves[0]
     user_score = user_move_analysis[0]["score_cp"] if user_move_analysis else 0
     best_score = best["score_cp"]
-    # Both scores are from White's perspective (score.white() in engine.py)
-    # delta: positive = user move improved White's position vs best, negative = worse
     delta = user_score - best_score
-
-    try:
-        coach_response = coach.compare_moves(
-            fen=req.fen,
-            turn=bs.turn,
-            best_move=best["san"],
-            best_score=best_score,
-            user_move=move_san,
-            user_score=user_score,
-            delta=delta,
-            top_moves_str=format_top_moves(top_moves),
-            heuristics_before=format_heuristics_for_prompt(heuristics_before),
-            heuristics_after=format_heuristics_for_prompt(heuristics_after),
-        )
-    except Exception as e:
-        return err_response("LLM_CONNECTION_ERROR", str(e), request_id)
 
     # Advance session board state
     bs.push_move(parsed_move)
 
-    return ok_response({
-        "valid": True,
-        "fen_after": bs.board.fen(),
-        "turn_after": bs.turn,
-        "user_move": {"san": move_san, "score_cp": user_score, "mate": user_move_analysis[0]["mate"] if user_move_analysis else None},
-        "best_move": {"san": best["san"], "score_cp": best_score, "mate": best["mate"]},
-        "delta_cp": delta,
-        "top_moves": serialize_moves(top_moves),
-        "heuristics_before": heuristics_before,
-        "heuristics_after": heuristics_after,
-        "coach_response": coach_response,
-    }, request_id)
+    is_best_move = abs(delta) <= BEST_MOVE_THRESHOLD
+
+    async def event_generator():
+        # 1) Send move analysis data immediately
+        move_data = {
+            "valid": True,
+            "fen_after": bs.board.fen(),
+            "turn_after": bs.turn,
+            "user_move": {"san": move_san, "score_cp": user_score, "mate": user_move_analysis[0]["mate"] if user_move_analysis else None},
+            "best_move": {"san": best["san"], "score_cp": best_score, "mate": best["mate"]},
+            "delta_cp": delta,
+            "top_moves": serialize_moves(top_moves),
+            "is_best_move": is_best_move,
+            "request_id": request_id,
+        }
+        yield {"event": "move_data", "data": json_module.dumps(move_data)}
+
+        # 2) Conditional coach response (AIC-7)
+        if is_best_move:
+            yield {"event": "coach_skip", "data": json_module.dumps({"reason": "best_move"})}
+        else:
+            # Stream coach response token by token (AIC-6)
+            try:
+                for chunk in coach.compare_moves_stream(
+                    fen=req.fen,
+                    turn=bs.turn,
+                    best_move=best["san"],
+                    best_score=best_score,
+                    user_move=move_san,
+                    user_score=user_score,
+                    delta=delta,
+                    top_moves_str=format_top_moves(top_moves),
+                    heuristics_before=format_heuristics_for_prompt(heuristics_before),
+                    heuristics_after=format_heuristics_for_prompt(heuristics_after),
+                ):
+                    yield {"event": "coach_stream", "data": json_module.dumps({"token": chunk})}
+            except Exception as e:
+                logger.error("Coach streaming error: %s", e)
+                yield {"event": "coach_error", "data": json_module.dumps({"message": str(e)})}
+
+        yield {"event": "done", "data": "{}"}
+
+    return EventSourceResponse(event_generator())
 
 
 @app.post("/api/chat")

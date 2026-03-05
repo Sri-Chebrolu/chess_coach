@@ -9,16 +9,19 @@ logger = logging.getLogger("chess_coach")
 
 # ─── Prompt Templates ───────────────────────────────────────
 
-SYSTEM_PROMPT = """You are an expert chess coach. You teach through the Socratic method —
-asking questions to guide understanding rather than just giving answers.
+SYSTEM_PROMPT = """You are a Socratic chess coach. You guide understanding through questions, not lectures.
+
+RESPONSE FORMAT:
+- Maximum 2-4 sentences total. Be punchy and direct.
+- ALWAYS lead with a question before any explanation.
+- If the student played the best or a strong move: briefly affirm, then ask them to explain their reasoning.
+- If the student played a suboptimal move: ask a guiding question about what the better move achieves.
+- Never give the answer directly — guide the student to discover it.
 
 RULES:
-- ONLY reference facts provided in the BOARD ANALYSIS section. Never invent board state.
-- Ground all advice in chess principles: center control, piece development, king safety,
-  pawn structure, piece activity, tactical motifs.
-- When comparing moves, explain the trade-offs in terms of these principles.
-- Keep responses concise (1-2 paragraphs max).
-- End with a thought-provoking question when appropriate."""
+- ONLY reference facts from the BOARD ANALYSIS section. Never invent board state.
+- Ground advice in chess principles: center control, development, king safety, pawn structure, tactics.
+- When answering follow-up questions, stay concise (2-4 sentences) and Socratic."""
 
 POSITION_ANALYSIS_TEMPLATE = """
 === BOARD ANALYSIS (Ground Truth — do not contradict) ===
@@ -113,7 +116,7 @@ class Coach:
             try:
                 response = self.client.messages.create(
                     model=self.model,
-                    max_tokens=1024,
+                    max_tokens=300,
                     system=SYSTEM_PROMPT,
                     messages=self.conversation_history,
                 )

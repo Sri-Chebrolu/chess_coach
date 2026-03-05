@@ -113,7 +113,7 @@ function LoadingView({ step, onCancel }: { step: 'validating' | 'engine' | 'coac
 export default function App() {
   const [state, dispatch] = useReducer(reducer, { view: 'input' })
 
-  const handleSubmit = useCallback(async (fen: string, pgn: string) => {
+  const handleSubmit = useCallback(async (fen: string, pgn: string, opponentElo: number | null = null) => {
     const ctrl = new AbortController()
     dispatch({ type: 'SUBMIT', abortController: ctrl })
 
@@ -159,6 +159,7 @@ export default function App() {
           ],
           isCoachThinking: false,
           pgn: pgn_nav,
+          opponentElo,
         },
       })
     } catch (err) {
@@ -199,6 +200,7 @@ export default function App() {
           turn={data.turn}
           topMoves={data.topMoves}
           pgn={data.pgn}
+          opponentElo={data.opponentElo}
           onFenChange={(fen, turn) => dispatch({ type: 'UPDATE_FEN', fen, turn })}
           onTopMovesChange={(topMoves) => dispatch({ type: 'UPDATE_TOP_MOVES', topMoves })}
           onCoachMessage={(message) => dispatch({ type: 'APPEND_CHAT', message })}

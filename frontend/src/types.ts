@@ -46,6 +46,13 @@ export interface Heuristics {
   }
 }
 
+export interface OpponentMove {
+  san: string
+  uci: string
+  from: string
+  to: string
+}
+
 export interface PgnNav {
   move_index: number
   total_moves: number
@@ -73,6 +80,7 @@ export interface AnalysisViewState {
   chatMessages: ChatMessage[]
   isCoachThinking: boolean
   pgn: PgnNav | null
+  opponentElo: number | null
 }
 
 export type AppState =

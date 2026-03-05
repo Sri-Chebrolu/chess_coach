@@ -19,12 +19,20 @@ interface MoveResponse {
   coach_response: string
 }
 
+interface OpponentMoveResponse {
+  opponent_move: { san: string; uci: string; from: string; to: string }
+  fen_after: string
+  turn_after: 'White' | 'Black'
+  top_moves: EngineMove[]
+}
+
 interface BoardPanelProps {
   sessionId: string
   currentFen: string
   turn: 'White' | 'Black'
   topMoves: EngineMove[]
   pgn: PgnNav | null
+  opponentElo: number | null
   onFenChange: (fen: string, turn: 'White' | 'Black') => void
   onTopMovesChange: (moves: EngineMove[]) => void
   onCoachMessage: (message: ChatMessage) => void
@@ -50,6 +58,7 @@ export function BoardPanel({
   turn,
   topMoves,
   pgn,
+  opponentElo,
   onFenChange,
   onTopMovesChange,
   onCoachMessage,
@@ -60,6 +69,7 @@ export function BoardPanel({
   const [boardWidth, setBoardWidth] = useState(480)
   const prevFenRef = useRef(currentFen)
   const [flashSquare, setFlashSquare] = useState<string | null>(null)
+  const [waitingForOpponent, setWaitingForOpponent] = useState(false)
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -70,8 +80,46 @@ export function BoardPanel({
     return () => observer.disconnect()
   }, [])
 
+  const fetchOpponentMove = useCallback(
+    async (fen: string) => {
+      if (!opponentElo) return
+      setWaitingForOpponent(true)
+
+      // Brief delay for realism
+      await new Promise((r) => setTimeout(r, 1500))
+
+      try {
+        const res = await apiFetch<OpponentMoveResponse>('/api/opponent-move', {
+          session_id: sessionId,
+          fen,
+          elo: opponentElo,
+        })
+        if (res.data) {
+          onFenChange(res.data.fen_after, res.data.turn_after)
+          onTopMovesChange(res.data.top_moves)
+          onCoachMessage({
+            role: 'system',
+            content: `Opponent played ${res.data.opponent_move.san}`,
+            timestamp: new Date().toISOString(),
+          })
+        }
+      } catch {
+        onCoachMessage({
+          role: 'system',
+          content: 'Opponent move failed. Try making another move.',
+          timestamp: new Date().toISOString(),
+        })
+      } finally {
+        setWaitingForOpponent(false)
+      }
+    },
+    [sessionId, opponentElo, onFenChange, onTopMovesChange, onCoachMessage],
+  )
+
   const handlePieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string): boolean => {
+      if (waitingForOpponent) return false
+
       const game = new Chess(currentFen)
       let result
       try {
@@ -99,11 +147,14 @@ export function BoardPanel({
               content: res.data.coach_response,
               timestamp: new Date().toISOString(),
             })
+            // If opponent mode is active, fetch computer's response
+            if (opponentElo) {
+              fetchOpponentMove(res.data.fen_after)
+            }
           }
         })
         .catch((err) => {
           if (err.code === 'INVALID_MOVE') {
-            // Revert board
             onFenChange(fenBefore, turn)
             setFlashSquare(sourceSquare)
             setTimeout(() => setFlashSquare(null), 350)
@@ -120,7 +171,7 @@ export function BoardPanel({
 
       return true
     },
-    [currentFen, sessionId, turn, onFenChange, onTopMovesChange, onCoachMessage, onSetThinking],
+    [currentFen, sessionId, turn, opponentElo, waitingForOpponent, onFenChange, onTopMovesChange, onCoachMessage, onSetThinking, fetchOpponentMove],
   )
 
   const pvArrows = getPvArrows(topMoves, currentFen)
@@ -155,6 +206,13 @@ export function BoardPanel({
           />
         </div>
       </div>
+
+      {/* Opponent thinking indicator */}
+      {waitingForOpponent && (
+        <div className="px-3 py-1 text-[11px] font-mono text-text-muted blinking-cursor">
+          Opponent is thinking...
+        </div>
+      )}
 
       {/* PGN Navigator (conditional) */}
       {pgn && (

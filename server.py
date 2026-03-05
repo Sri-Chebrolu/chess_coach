@@ -127,6 +127,12 @@ class PgnNavigateRequest(BaseModel):
     move_index: int | None = None
 
 
+class OpponentMoveRequest(BaseModel):
+    session_id: str
+    fen: str
+    elo: int = 1500
+
+
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @app.post("/api/validate")
@@ -366,4 +372,40 @@ async def pgn_navigate(req: PgnNavigateRequest, request: Request):
         "last_move_san": bs.move_history[-1] if bs.move_history else None,
         "move_display": bs.get_pgn_moves_display(),
         "legal_moves": bs.get_legal_moves_san(),
+    }, request_id)
+
+
+@app.post("/api/opponent-move")
+async def opponent_move(req: OpponentMoveRequest, request: Request):
+    request_id = str(uuid.uuid4())
+    session = get_session(req.session_id)
+    if not session:
+        return err_response("SESSION_NOT_FOUND", "Session expired.", request_id, 404)
+
+    bs = session["board_state"]
+    engine = session["engine"]
+
+    try:
+        bs.board = chess.Board(req.fen)
+    except Exception as e:
+        return err_response("INVALID_FEN", str(e), request_id)
+
+    try:
+        move_data = engine.get_opponent_move(bs.board, req.elo)
+    except Exception as e:
+        return err_response("ENGINE_ERROR", str(e), request_id)
+
+    parsed = chess.Move.from_uci(move_data["uci"])
+    bs.push_move(parsed)
+
+    try:
+        top_moves = engine.analyze_position(bs.board, num_moves=3)
+    except Exception as e:
+        return err_response("ENGINE_TIMEOUT", str(e), request_id)
+
+    return ok_response({
+        "opponent_move": move_data,
+        "fen_after": bs.board.fen(),
+        "turn_after": bs.turn,
+        "top_moves": serialize_moves(top_moves),
     }, request_id)

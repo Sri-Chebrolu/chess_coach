@@ -110,6 +110,20 @@ class EngineAnalysis:
             })
         return moves
 
+    def get_opponent_move(self, board: chess.Board, elo: int) -> dict:
+        """Get a move at a specific ELO strength for computer opponent."""
+        self.engine.configure({"UCI_LimitStrength": True, "UCI_Elo": elo})
+        result = self.engine.play(board, chess.engine.Limit(time=1.0))
+        self.engine.configure({"UCI_LimitStrength": False})
+
+        move = result.move
+        return {
+            "san": board.san(move),
+            "uci": move.uci(),
+            "from": chess.square_name(move.from_square),
+            "to": chess.square_name(move.to_square),
+        }
+
     def evaluate_move(self, board: chess.Board, move: chess.Move):
         """Evaluate a specific move by playing it and analyzing the resulting position."""
         board_after = board.copy()

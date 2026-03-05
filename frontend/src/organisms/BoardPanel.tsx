@@ -29,6 +29,7 @@ interface BoardPanelProps {
   sessionId: string
   currentFen: string
   turn: 'White' | 'Black'
+  playerColor: 'white' | 'black'
   topMoves: EngineMove[]
   pgn: PgnNav | null
   opponentElo: number | null
@@ -56,6 +57,7 @@ export function BoardPanel({
   sessionId,
   currentFen,
   turn,
+  playerColor,
   topMoves,
   pgn,
   opponentElo,
@@ -212,7 +214,7 @@ export function BoardPanel({
             position={currentFen}
             onPieceDrop={handlePieceDrop}
             boardWidth={boardWidth}
-            boardOrientation={turn === 'Black' ? 'black' : 'white'}
+            boardOrientation={playerColor}
             customBoardStyle={{
               border: '1px solid var(--border)',
               boxShadow: '0 4px 24px rgba(0,0,0,0.5)',

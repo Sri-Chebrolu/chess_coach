@@ -75,6 +75,7 @@ export interface AnalysisViewState {
   currentFen: string
   initialFen: string
   turn: 'White' | 'Black'
+  playerColor: 'white' | 'black'
   moveHistory: string[]
   topMoves: EngineMove[]
   heuristics: Heuristics | null
@@ -87,6 +88,7 @@ export interface AnalysisViewState {
 export type AppState =
   | { view: 'input'; error?: string; prefill?: { fen?: string; pgn?: string } }
   | { view: 'loading'; step: 'validating' | 'engine' | 'coach'; abortController: AbortController }
+  | { view: 'color_select'; abortController: AbortController }
   | { view: 'analysis'; data: AnalysisViewState }
 
 export type AppAction =
@@ -102,6 +104,7 @@ export type AppAction =
   | { type: 'SET_COACH_THINKING'; thinking: boolean }
   | { type: 'UPDATE_TOP_MOVES'; topMoves: EngineMove[] }
   | { type: 'UPDATE_PGN_NAV'; pgn: PgnNav | null }
+  | { type: 'COLOR_SELECT_NEEDED' }
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 

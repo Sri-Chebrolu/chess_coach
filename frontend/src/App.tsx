@@ -1,5 +1,6 @@
-import { useReducer, useCallback } from 'react'
+import { useReducer, useCallback, useRef } from 'react'
 import { InputPanel } from './organisms/InputPanel'
+import { ColorSelectModal } from './organisms/ColorSelectModal'
 import { AnalysisLayout } from './organisms/AnalysisLayout'
 import { BoardPanel } from './organisms/BoardPanel'
 import { CoachPanel } from './organisms/CoachPanel'
@@ -14,11 +15,16 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { view: 'loading', step: 'validating', abortController: action.abortController }
 
     case 'SET_LOADING_STEP':
-      if (state.view !== 'loading') return state
-      return { ...state, step: action.step }
+      if (state.view === 'loading') return { ...state, step: action.step }
+      if (state.view === 'color_select') return { view: 'loading', step: action.step, abortController: state.abortController }
+      return state
 
     case 'ANALYSIS_READY':
       return { view: 'analysis', data: action.data }
+
+    case 'COLOR_SELECT_NEEDED':
+      if (state.view !== 'loading') return state
+      return { view: 'color_select', abortController: state.abortController }
 
     case 'ERROR': {
       if (state.view === 'loading') state.abortController.abort()
@@ -27,6 +33,7 @@ function reducer(state: AppState, action: AppAction): AppState {
 
     case 'RESET': {
       if (state.view === 'loading') state.abortController.abort()
+      if (state.view === 'color_select') state.abortController.abort()
       return { view: 'input' }
     }
 
@@ -123,6 +130,7 @@ function LoadingView({ step, onCancel }: { step: 'validating' | 'engine' | 'coac
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, { view: 'input' })
+  const colorResolveRef = useRef<((c: 'white' | 'black') => void) | null>(null)
 
   const handleSubmit = useCallback(async (fen: string, pgn: string, opponentElo: number | null = null) => {
     const ctrl = new AbortController()
@@ -136,6 +144,19 @@ export default function App() {
         { fen: fen || null, pgn: pgn || null },
         ctrl.signal,
       )
+
+      let playerColor: 'white' | 'black'
+
+      if (pgn.trim().length > 0) {
+        // PGN mode: infer from initial turn, no modal needed
+        playerColor = validated.data!.turn === 'Black' ? 'black' : 'white'
+      } else {
+        // FEN mode: pause and show color selection modal
+        dispatch({ type: 'COLOR_SELECT_NEEDED' })
+        playerColor = await new Promise<'white' | 'black'>((resolve) => {
+          colorResolveRef.current = resolve
+        })
+      }
 
       dispatch({ type: 'SET_LOADING_STEP', step: 'engine' })
 
@@ -158,6 +179,7 @@ export default function App() {
           currentFen: d.fen,
           initialFen: d.fen,
           turn: d.turn,
+          playerColor,
           moveHistory: [],
           topMoves: d.top_moves,
           heuristics: d.heuristics,
@@ -190,6 +212,15 @@ export default function App() {
     )
   }
 
+  if (state.view === 'color_select') {
+    return (
+      <ColorSelectModal
+        onSelect={(color) => { colorResolveRef.current?.(color) }}
+        onCancel={() => dispatch({ type: 'RESET' })}
+      />
+    )
+  }
+
   if (state.view === 'loading') {
     return (
       <LoadingView
@@ -209,6 +240,7 @@ export default function App() {
           sessionId={data.sessionId}
           currentFen={data.currentFen}
           turn={data.turn}
+          playerColor={data.playerColor}
           topMoves={data.topMoves}
           pgn={data.pgn}
           opponentElo={data.opponentElo}

@@ -237,7 +237,7 @@ async def move(req: MoveRequest, request: Request):
     coach = session["coach"]
 
     try:
-        bs.load_fen(req.fen)
+        bs.board = chess.Board(req.fen)
     except Exception as e:
         return err_response("INVALID_FEN", str(e), request_id)
 

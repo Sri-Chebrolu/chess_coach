@@ -40,6 +40,15 @@ class BoardState:
         return None
 
     def push_move(self, move: chess.Move):
+        if self.pgn_mode and self.pgn_current_index < len(self.pgn_moves):
+            expected_move = self.pgn_moves[self.pgn_current_index]
+            if move == expected_move:
+                # User played the expected PGN move — advance index, stay in PGN mode
+                self.move_history.append(self.board.san(move))
+                self.board.push(move)
+                self.pgn_current_index += 1
+                return
+            # User deviated from PGN — exit to sideline mode
         self.exit_pgn_mode()
         self.move_history.append(self.board.san(move))
         self.board.push(move)

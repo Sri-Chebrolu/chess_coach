@@ -69,7 +69,7 @@ export function BoardPanel({
   onPgnNavigate,
 }: BoardPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [boardWidth, setBoardWidth] = useState(480)
+  const [boardWidth, setBoardWidth] = useState(900)
   const prevFenRef = useRef(currentFen)
   const [flashSquare, setFlashSquare] = useState<string | null>(null)
   const [waitingForOpponent, setWaitingForOpponent] = useState(false)
@@ -77,7 +77,7 @@ export function BoardPanel({
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
       const width = entries[0].contentRect.width
-      setBoardWidth(Math.min(Math.max(width - 24, 320), 640))
+      setBoardWidth(Math.min(Math.max(width - 24, 320), 750))
     })
     if (containerRef.current) observer.observe(containerRef.current)
     return () => observer.disconnect()
@@ -207,7 +207,7 @@ export function BoardPanel({
   return (
     <div className="flex flex-col h-full bg-bg-primary overflow-hidden">
       <div ref={containerRef} className="flex flex-row gap-2 p-3 flex-1 min-h-0">
-        <EvalBar scoreCp={evalScore} mate={evalMate} height={boardWidth} data-testid="eval-bar" />
+        {/* <EvalBar scoreCp={evalScore} mate={evalMate} height={boardWidth} data-testid="eval-bar" /> */}
 
         <div data-testid="chess-board" style={{ width: boardWidth }}>
           <Chessboard
@@ -236,14 +236,14 @@ export function BoardPanel({
       )}
 
       {/* PGN Navigator (conditional) */}
-      {pgn && (
+      {/* {pgn && (
         <div className="px-3 pb-2">
           <PgnNavigator sessionId={sessionId} pgn={pgn} onNavigate={onPgnNavigate} />
         </div>
-      )}
+      )} */}
 
       {/* Engine lines */}
-      <div className="border-t border-border-default">
+      {/* <div className="border-t border-border-default">
         {topMoves.map((move, i) => (
           <MoveCard
             key={move.san}
@@ -258,7 +258,7 @@ export function BoardPanel({
         {topMoves.length === 0 && (
           <div className="px-3 py-2 text-[12px] text-text-muted font-mono">No engine lines yet.</div>
         )}
-      </div>
+      </div> */}
     </div>
   )
 }

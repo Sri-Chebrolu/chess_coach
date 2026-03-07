@@ -108,6 +108,15 @@ class Coach:
         )
         yield from self._send_stream(prompt)
 
+    def analyze_position_stream(self, fen, turn, top_moves_str, heuristics_str):
+        """Streaming variant of analyze_position. Yields text chunks."""
+        prompt = POSITION_ANALYSIS_TEMPLATE.format(
+            fen=fen, turn=turn,
+            top_moves=top_moves_str,
+            heuristics=heuristics_str,
+        )
+        yield from self._send_stream(prompt)
+
     def followup(self, question: str) -> str:
         """Handle free-form follow-up questions with conversation context."""
         return self._send(question)

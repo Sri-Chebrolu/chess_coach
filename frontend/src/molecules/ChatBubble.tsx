@@ -1,6 +1,6 @@
-import type { ChatMessage } from '../types'
+import type { CoachMessage } from '../types'
 
-interface ChatBubbleProps extends ChatMessage {
+interface ChatBubbleProps extends CoachMessage {
   index: number
   'data-testid'?: string
 }

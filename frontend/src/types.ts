@@ -1,89 +1,117 @@
-// ─── Engine & Board ──────────────────────────────────────────────────────────
+// ─── Canonical Domain Types (camelCase) ──────────────────────────────────────
 
 export interface EngineMove {
   san: string
-  score_cp: number
+  uci: string
+  scoreCpWhite: number | null
   mate: number | null
   pv: string[]
+  fromSquare: string
+  toSquare: string
 }
 
-export interface KingSafety {
-  attackers: number
-  in_check: boolean
-  castled: boolean
-  pawn_shield: number
+export interface PositionAnalysis {
+  topMoves: EngineMove[]
+  heuristics: Record<string, unknown>
+  scoreSemantics: { perspective: string; normalizedForTurn: boolean }
 }
 
-export interface Heuristics {
-  material: {
-    white: number
-    black: number
-    balance: number
-    description: string
-  }
-  center_control: {
-    white_controls: number
-    black_controls: number
-    description: string
-  }
-  piece_activity: {
-    white_activity: number
-    black_activity: number
-    description: string
-  }
-  king_safety: {
-    white: KingSafety
-    black: KingSafety
-  }
-  pawn_structure: {
-    white: string[]
-    black: string[]
-  }
-  tactics: string[]
-  development: {
-    white: string[]
-    black: string[]
-  }
+export interface MoveTimelineEntry {
+  index: number
+  fen: string
+  turn: 'White' | 'Black'
+  san: string | null
+  moveNumberLabel: string | null
+  source: 'initial' | 'pgn_mainline' | 'live_play' | 'opponent_play'
 }
 
-export interface OpponentMove {
-  san: string
-  uci: string
-  from: string
-  to: string
+export interface MoveTimeline {
+  entries: MoveTimelineEntry[]
+  currentIndex: number
 }
 
-export interface PgnNav {
-  move_index: number
-  total_moves: number
-  move_display: string
+export interface MoveExecutionResult {
+  moveSan: string
+  moveUci: string
+  fromSquare: string
+  toSquare: string
+  promotion: string | null
+  isLegal: boolean
+  isBestMove: boolean
+  userMoveEvalWhite: number | null
+  bestMoveEvalWhite: number | null
+  deltaCpWhite: number | null
 }
 
-// ─── Chat ────────────────────────────────────────────────────────────────────
+export interface PgnMetadata {
+  white: string | null
+  black: string | null
+  event: string | null
+  totalHalfMoves: number
+  startFen: string
+}
 
-export interface ChatMessage {
+export interface CoachMessage {
   role: 'user' | 'coach' | 'system'
   content: string
   timestamp: string
   streaming?: boolean
 }
 
-// ─── Application State ───────────────────────────────────────────────────────
+// ─── Application State Slices ────────────────────────────────────────────────
 
-export interface AnalysisViewState {
+export interface SessionState {
   sessionId: string
-  currentFen: string
-  initialFen: string
-  turn: 'White' | 'Black'
+  sourceKind: 'fen' | 'pgn'
+  pgnMetadata: PgnMetadata | null
+  capabilities: Record<string, boolean>
   playerColor: 'white' | 'black'
-  moveHistory: string[]
-  topMoves: EngineMove[]
-  heuristics: Heuristics | null
-  chatMessages: ChatMessage[]
-  isCoachThinking: boolean
-  pgn: PgnNav | null
   opponentElo: number | null
 }
+
+export interface PositionState {
+  initialFen: string
+  currentFen: string
+  turn: 'White' | 'Black'
+  currentTimelineIndex: number
+  timeline: MoveTimeline
+}
+
+export interface AnalysisState {
+  currentAnalysis: PositionAnalysis | null
+  analysisByFen: Record<string, PositionAnalysis>
+  isAnalyzingPosition: boolean
+  analysisError: string | null
+}
+
+export interface CoachState {
+  messages: CoachMessage[]
+  isCoachStreaming: boolean
+  coachError: string | null
+}
+
+export interface RightRailState {
+  activeTab: 'coach' | 'moves'
+  showBestLine: boolean
+  showBestMoveSource: boolean
+}
+
+export interface MoveStatusState {
+  isSubmittingMove: boolean
+  isWaitingForOpponent: boolean
+  lastMoveResult: MoveExecutionResult | null
+}
+
+export interface AnalysisViewState {
+  session: SessionState
+  position: PositionState
+  analysis: AnalysisState
+  coach: CoachState
+  rightRail: RightRailState
+  moveStatus: MoveStatusState
+}
+
+// ─── App State Machine ───────────────────────────────────────────────────────
 
 export type AppState =
   | { view: 'input'; error?: string; prefill?: { fen?: string; pgn?: string } }
@@ -93,18 +121,23 @@ export type AppState =
 
 export type AppAction =
   | { type: 'SUBMIT'; abortController: AbortController }
-  | { type: 'SET_ABORT'; abortController: AbortController }
   | { type: 'SET_LOADING_STEP'; step: 'validating' | 'engine' | 'coach' }
   | { type: 'ANALYSIS_READY'; data: AnalysisViewState }
   | { type: 'ERROR'; message: string; prefill?: { fen?: string; pgn?: string } }
   | { type: 'RESET' }
-  | { type: 'UPDATE_FEN'; fen: string; turn: 'White' | 'Black' }
-  | { type: 'APPEND_CHAT'; message: ChatMessage }
-  | { type: 'STREAM_CHAT'; message: ChatMessage }
-  | { type: 'SET_COACH_THINKING'; thinking: boolean }
-  | { type: 'UPDATE_TOP_MOVES'; topMoves: EngineMove[] }
-  | { type: 'UPDATE_PGN_NAV'; pgn: PgnNav | null }
   | { type: 'COLOR_SELECT_NEEDED' }
+  | { type: 'NAVIGATE_TIMELINE'; index: number }
+  | { type: 'SET_ANALYSIS'; fen: string; analysis: PositionAnalysis }
+  | { type: 'SET_ANALYZING_POSITION'; analyzing: boolean }
+  | { type: 'TIMELINE_UPDATE'; update: { mode: 'append' | 'truncate_and_append' | 'replace_cursor'; entries: MoveTimelineEntry[]; newCurrentIndex: number } }
+  | { type: 'MOVE_EXECUTED'; positionAfter: { fen: string; turn: 'White' | 'Black'; timelineIndex: number }; moveResult: MoveExecutionResult }
+  | { type: 'SET_RIGHT_RAIL_TAB'; tab: 'coach' | 'moves' }
+  | { type: 'TOGGLE_BEST_LINE' }
+  | { type: 'TOGGLE_BEST_MOVE_SOURCE' }
+  | { type: 'APPEND_CHAT'; message: CoachMessage }
+  | { type: 'STREAM_CHAT'; message: CoachMessage }
+  | { type: 'SET_COACH_STREAMING'; streaming: boolean }
+  | { type: 'SET_MOVE_STATUS'; status: Partial<MoveStatusState> }
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 

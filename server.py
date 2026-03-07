@@ -33,7 +33,7 @@ logger = logging.getLogger("chess_coach")
 def format_top_moves(moves: list[dict]) -> str:
     lines = []
     for i, m in enumerate(moves, 1):
-        score = f"mate in {m['mate']}" if m["mate"] else f"{m['score_cp']} cp"
+        score = f"mate in {m['mate']}" if m["mate"] else f"{m['score_cp_white']} cp"
         pv = " → ".join(m["pv"])
         lines.append(f"  {i}. {m['san']} ({score}) — line: {pv}")
     return "\n".join(lines)
@@ -56,9 +56,27 @@ def enrich_message(user_message: str, fen: str) -> str:
 def serialize_moves(moves: list[dict]) -> list[dict]:
     """Strip chess.Move objects — only keep JSON-serializable fields."""
     return [
-        {"san": m["san"], "score_cp": m["score_cp"], "mate": m["mate"], "pv": m["pv"]}
+        {
+            "san": m["san"],
+            "uci": m["uci"],
+            "from_square": m["from_square"],
+            "to_square": m["to_square"],
+            "score_cp_white": m["score_cp_white"],
+            "mate": m["mate"],
+            "pv": m["pv"],
+        }
         for m in moves
     ]
+
+
+def build_position(fen: str, move_index: int, source_kind: str) -> dict:
+    board = chess.Board(fen)
+    return {
+        "fen": fen,
+        "turn": "White" if board.turn == chess.WHITE else "Black",
+        "move_index": move_index,
+        "source_kind": source_kind,
+    }
 
 
 def ok_response(data: dict, request_id: str) -> dict:
@@ -80,7 +98,6 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(cleanup_sessions())
     yield
     task.cancel()
-    # Stop all active Stockfish processes on shutdown
     for sid, session in list(session_store.sessions.items()):
         try:
             session["engine"].stop()
@@ -105,16 +122,22 @@ class ValidateRequest(BaseModel):
     pgn: str | None = None
 
 
-class AnalyzeRequest(BaseModel):
-    fen: str
-    session_id: str | None = None
+class SessionInitRequest(BaseModel):
+    source_kind: str  # "fen" | "pgn"
+    fen: str | None = None
     pgn: str | None = None
+
+
+class AnalyzeRequest(BaseModel):
+    session_id: str
+    fen: str
 
 
 class MoveRequest(BaseModel):
     session_id: str
-    fen: str
+    fen_before: str
     move: str  # SAN or UCI
+    position_context: dict | None = None
 
 
 class ChatRequest(BaseModel):
@@ -123,16 +146,28 @@ class ChatRequest(BaseModel):
     fen: str
 
 
-class PgnNavigateRequest(BaseModel):
-    session_id: str
-    action: str  # "goto" | "next" | "prev" | "start" | "end"
-    move_index: int | None = None
-
-
 class OpponentMoveRequest(BaseModel):
     session_id: str
     fen: str
     elo: int = 1500
+
+
+class CoachAnalyzeRequest(BaseModel):
+    session_id: str
+    fen_before: str
+    fen_after: str
+    move_result: dict
+    analysis_before: dict | None = None
+    analysis_after: dict | None = None
+
+
+class CoachPositionRequest(BaseModel):
+    session_id: str
+    fen: str
+    analysis_context: dict | None = None
+
+
+BEST_MOVE_THRESHOLD = 30  # centipawns
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -146,18 +181,20 @@ async def validate(req: ValidateRequest, request: Request):
 
     bs = BoardState()
     pgn_metadata = None
+    source_kind = "fen"
 
     if req.pgn:
         success, message = bs.load_pgn(req.pgn)
         if not success:
             return err_response("INVALID_PGN", message, request_id)
+        source_kind = "pgn"
         game = bs.pgn_game
         pgn_metadata = {
             "white": game.headers.get("White"),
             "black": game.headers.get("Black"),
             "event": game.headers.get("Event"),
             "total_half_moves": len(bs.pgn_moves),
-            "fen_at_start": bs.initial_fen,
+            "start_fen": bs.initial_fen,
         }
     else:
         try:
@@ -166,79 +203,105 @@ async def validate(req: ValidateRequest, request: Request):
             return err_response("INVALID_FEN", str(e), request_id)
 
     return ok_response({
-        "valid": True,
-        "fen": bs.board.fen(),
+        "source_kind": source_kind,
+        "canonical_start_fen": bs.board.fen(),
         "turn": bs.turn,
         "legal_moves": bs.get_legal_moves_san(),
         "pgn_metadata": pgn_metadata,
     }, request_id)
 
 
-@app.post("/api/analyze")
-async def analyze(req: AnalyzeRequest, request: Request):
+@app.post("/api/session/init")
+async def session_init(req: SessionInitRequest, request: Request):
     request_id = str(uuid.uuid4())
-    session_id, session = get_or_create_session(req.session_id)
-    bs = session["board_state"]
-    engine = session["engine"]
-    coach = session["coach"]
 
-    # Load position into session board state
-    if req.pgn:
+    session_id, session = get_or_create_session(None)
+    bs = session["board_state"]
+
+    if req.source_kind == "pgn":
+        if not req.pgn:
+            return err_response("MISSING_PGN", "pgn field required for source_kind=pgn.", request_id)
         success, message = bs.load_pgn(req.pgn)
         if not success:
             return err_response("INVALID_PGN", message, request_id)
+        timeline_entries = bs.build_timeline(req.pgn)
+        game = bs.pgn_game
+        pgn_metadata = {
+            "white": game.headers.get("White"),
+            "black": game.headers.get("Black"),
+            "event": game.headers.get("Event"),
+            "total_half_moves": len(bs.pgn_moves),
+            "start_fen": bs.initial_fen,
+        }
     else:
+        fen = req.fen or chess.STARTING_FEN
         try:
-            bs.load_fen(req.fen)
+            bs.load_fen(fen)
         except Exception as e:
             return err_response("INVALID_FEN", str(e), request_id)
+        timeline_entries = bs.build_initial_timeline(fen)
+        pgn_metadata = None
+
+    # Store source_kind on the session for later use
+    session["source_kind"] = req.source_kind
+
+    initial_position = build_position(
+        fen=bs.board.fen(),
+        move_index=0,
+        source_kind=req.source_kind,
+    )
+
+    return ok_response({
+        "session_id": session_id,
+        "source_kind": req.source_kind,
+        "initial_position": initial_position,
+        "timeline": {
+            "entries": timeline_entries,
+            "current_index": 0,
+            "navigation_mode": "timeline",
+        },
+        "pgn_metadata": pgn_metadata,
+        "session_capabilities": {"opponent_mode": True},
+    }, request_id)
+
+
+@app.post("/api/analyze")
+async def analyze(req: AnalyzeRequest, request: Request):
+    """Pure read — engine analysis of a position. No session mutation."""
+    request_id = str(uuid.uuid4())
+    session = get_session(req.session_id)
+    if not session:
+        return err_response("SESSION_NOT_FOUND", "Session expired. Start a new analysis.", request_id, 404)
+
+    engine = session["engine"]
+    source_kind = session.get("source_kind", "fen")
 
     try:
-        top_moves = engine.analyze_position(bs.board, num_moves=3)
+        board = chess.Board(req.fen)
+    except Exception as e:
+        return err_response("INVALID_FEN", str(e), request_id)
+
+    try:
+        result = engine.analyze_position(board, num_moves=3)
     except Exception as e:
         logger.error("Engine error: %s", e)
         return err_response("ENGINE_TIMEOUT", str(e), request_id)
 
-    heuristics = extract_heuristics(bs.board)
-    top_moves_str = format_top_moves(top_moves)
-    heuristics_str = format_heuristics_for_prompt(heuristics)
-
-    try:
-        coach_response = coach.analyze_position(
-            fen=bs.board.fen(),
-            turn=bs.turn,
-            top_moves_str=top_moves_str,
-            heuristics_str=heuristics_str,
-        )
-    except Exception as e:
-        logger.error("LLM error: %s", e)
-        return err_response("LLM_CONNECTION_ERROR", str(e), request_id)
-
-    pgn_nav = None
-    if bs.pgn_mode:
-        pgn_nav = {
-            "move_index": bs.pgn_current_index,
-            "total_moves": len(bs.pgn_moves),
-            "move_display": bs.get_pgn_moves_display(),
-        }
+    heuristics = extract_heuristics(board)
 
     return ok_response({
-        "session_id": session_id,
-        "fen": bs.board.fen(),
-        "turn": bs.turn,
-        "top_moves": serialize_moves(top_moves),
-        "heuristics": heuristics,
-        "coach_response": coach_response,
-        "pgn_nav": pgn_nav,
+        "position": build_position(req.fen, 0, source_kind),
+        "analysis": {
+            "top_moves": serialize_moves(result["top_moves"]),
+            "heuristics": heuristics,
+            "score_semantics": result["score_semantics"],
+        },
     }, request_id)
-
-
-BEST_MOVE_THRESHOLD = 30  # centipawns — within this delta, consider it "best move"
 
 
 @app.post("/api/move")
 async def move(req: MoveRequest, request: Request):
-    """SSE endpoint: emits move_data, then coach_stream tokens or coach_skip."""
+    """Synchronous JSON endpoint — execute a move and return structured result."""
     request_id = str(uuid.uuid4())
     session = get_session(req.session_id)
     if not session:
@@ -246,82 +309,271 @@ async def move(req: MoveRequest, request: Request):
 
     bs = session["board_state"]
     engine = session["engine"]
-    coach = session["coach"]
+    source_kind = session.get("source_kind", "fen")
 
     try:
-        bs.board = chess.Board(req.fen)
+        board_before = chess.Board(req.fen_before)
     except Exception as e:
         return err_response("INVALID_FEN", str(e), request_id)
 
+    # Validate move
+    bs.board = board_before.copy()
     parsed_move = bs.validate_and_parse_move(req.move)
     if not parsed_move:
         return err_response("INVALID_MOVE", f"Illegal move: {req.move}", request_id)
 
-    move_san = bs.board.san(parsed_move)
+    move_san = board_before.san(parsed_move)
+    move_uci = parsed_move.uci()
+    from_sq = chess.square_name(parsed_move.from_square)
+    to_sq = chess.square_name(parsed_move.to_square)
+    promotion = None
+    if parsed_move.promotion:
+        promotion = chess.piece_name(parsed_move.promotion)
 
+    # Analyze position before move
     try:
-        top_moves = engine.analyze_position(bs.board, num_moves=3)
+        result_before = engine.analyze_position(board_before, num_moves=3)
     except Exception as e:
         return err_response("ENGINE_TIMEOUT", str(e), request_id)
 
-    heuristics_before = extract_heuristics(bs.board)
-
-    board_after = bs.board.copy()
+    # Execute move
+    board_after = board_before.copy()
     board_after.push(parsed_move)
+
+    # Analyze position after move
     try:
-        user_move_analysis = engine.analyze_position(board_after, num_moves=1)
+        result_after = engine.analyze_position(board_after, num_moves=3)
     except Exception as e:
         return err_response("ENGINE_TIMEOUT", str(e), request_id)
 
-    heuristics_after = extract_heuristics(board_after)
+    # Evaluate user's move (analyze the position after user's move)
+    try:
+        user_move_eval = engine.evaluate_move(board_before, parsed_move)
+    except Exception as e:
+        return err_response("ENGINE_TIMEOUT", str(e), request_id)
 
-    best = top_moves[0]
-    user_score = user_move_analysis[0]["score_cp"] if user_move_analysis else 0
-    best_score = best["score_cp"]
-    delta = user_score - best_score
+    best = result_before["top_moves"][0]
+    user_eval_white = user_move_eval["score_cp_white"]
+    best_eval_white = best["score_cp_white"]
+    delta_cp_white = user_eval_white - best_eval_white
+
+    is_best = abs(delta_cp_white) <= BEST_MOVE_THRESHOLD
 
     # Advance session board state
+    bs.board = board_before.copy()
     bs.push_move(parsed_move)
 
-    is_best_move = abs(delta) <= BEST_MOVE_THRESHOLD
+    # Determine move_index from session board state
+    move_index = len(bs.move_history)
+
+    # Build timeline update
+    fen_after = board_after.fen()
+    turn_after = "White" if board_after.turn == chess.WHITE else "Black"
+    move_number_label = BoardState._move_number_label(move_index)
+
+    timeline_entry = {
+        "index": move_index,
+        "fen": fen_after,
+        "turn": turn_after,
+        "san": move_san,
+        "move_number_label": move_number_label,
+        "source": "live_play",
+    }
+
+    position_before = build_position(req.fen_before, move_index - 1, source_kind)
+    position_after = build_position(fen_after, move_index, source_kind)
+
+    return ok_response({
+        "position_before": position_before,
+        "position_after": position_after,
+        "move_result": {
+            "move_san": move_san,
+            "move_uci": move_uci,
+            "from_square": from_sq,
+            "to_square": to_sq,
+            "promotion": promotion,
+            "is_legal": True,
+            "is_best_move": is_best,
+            "user_move_eval_white": user_eval_white,
+            "best_move_eval_white": best_eval_white,
+            "delta_cp_white": delta_cp_white,
+        },
+        "analysis_after": {
+            "top_moves": serialize_moves(result_after["top_moves"]),
+            "heuristics": extract_heuristics(board_after),
+            "score_semantics": result_after["score_semantics"],
+        },
+        "timeline_update": {
+            "mode": "append",
+            "entries": [timeline_entry],
+            "new_current_index": move_index,
+        },
+    }, request_id)
+
+
+@app.post("/api/opponent-move")
+async def opponent_move(req: OpponentMoveRequest, request: Request):
+    request_id = str(uuid.uuid4())
+    session = get_session(req.session_id)
+    if not session:
+        return err_response("SESSION_NOT_FOUND", "Session expired.", request_id, 404)
+
+    bs = session["board_state"]
+    engine = session["engine"]
+    source_kind = session.get("source_kind", "fen")
+
+    try:
+        board_before = chess.Board(req.fen)
+    except Exception as e:
+        return err_response("INVALID_FEN", str(e), request_id)
+
+    try:
+        move_data = engine.get_opponent_move(board_before, req.elo)
+    except Exception as e:
+        return err_response("ENGINE_ERROR", str(e), request_id)
+
+    parsed = chess.Move.from_uci(move_data["uci"])
+
+    # Execute move
+    board_after = board_before.copy()
+    board_after.push(parsed)
+
+    # Advance session board state
+    bs.board = board_before.copy()
+    bs.push_move(parsed)
+
+    move_index = len(bs.move_history)
+
+    # Analyze position after opponent move
+    try:
+        result_after = engine.analyze_position(board_after, num_moves=3)
+    except Exception as e:
+        return err_response("ENGINE_TIMEOUT", str(e), request_id)
+
+    fen_after = board_after.fen()
+    turn_after = "White" if board_after.turn == chess.WHITE else "Black"
+    move_number_label = BoardState._move_number_label(move_index)
+
+    timeline_entry = {
+        "index": move_index,
+        "fen": fen_after,
+        "turn": turn_after,
+        "san": move_data["san"],
+        "move_number_label": move_number_label,
+        "source": "opponent_play",
+    }
+
+    position_before = build_position(req.fen, move_index - 1, source_kind)
+    position_after = build_position(fen_after, move_index, source_kind)
+
+    return ok_response({
+        "position_before": position_before,
+        "position_after": position_after,
+        "opponent_move": move_data,
+        "analysis_after": {
+            "top_moves": serialize_moves(result_after["top_moves"]),
+            "heuristics": extract_heuristics(board_after),
+            "score_semantics": result_after["score_semantics"],
+        },
+        "timeline_update": {
+            "mode": "append",
+            "entries": [timeline_entry],
+            "new_current_index": move_index,
+        },
+    }, request_id)
+
+
+@app.post("/api/coach/coach-analyze")
+async def coach_analyze(req: CoachAnalyzeRequest, request: Request):
+    """SSE endpoint for coach commentary on a move."""
+    request_id = str(uuid.uuid4())
+    session = get_session(req.session_id)
+    if not session:
+        return err_response("SESSION_NOT_FOUND", "Session expired.", request_id, 404)
+
+    coach = session["coach"]
+    engine = session["engine"]
+    mr = req.move_result
+
+    is_best = mr.get("is_best_move", False)
 
     async def event_generator():
-        # 1) Send move analysis data immediately
-        move_data = {
-            "valid": True,
-            "fen_after": bs.board.fen(),
-            "turn_after": bs.turn,
-            "user_move": {"san": move_san, "score_cp": user_score, "mate": user_move_analysis[0]["mate"] if user_move_analysis else None},
-            "best_move": {"san": best["san"], "score_cp": best_score, "mate": best["mate"]},
-            "delta_cp": delta,
-            "top_moves": serialize_moves(top_moves),
-            "is_best_move": is_best_move,
-            "request_id": request_id,
-        }
-        yield {"event": "move_data", "data": json_module.dumps(move_data)}
+        yield {"event": "start", "data": "{}"}
 
-        # 2) Conditional coach response (AIC-7)
-        if is_best_move:
-            yield {"event": "coach_skip", "data": json_module.dumps({"reason": "best_move"})}
+        if is_best:
+            yield {"event": "skip", "data": json_module.dumps({"reason": "best_move"})}
         else:
-            # Stream coach response token by token (AIC-6)
             try:
+                # Get heuristics for context
+                board_before = chess.Board(req.fen_before)
+                board_after = chess.Board(req.fen_after)
+                heuristics_before = format_heuristics_for_prompt(extract_heuristics(board_before))
+                heuristics_after = format_heuristics_for_prompt(extract_heuristics(board_after))
+
+                # If analysis not provided, compute top moves for prompt
+                if req.analysis_before and "top_moves" in req.analysis_before:
+                    top_moves_str = format_top_moves(req.analysis_before["top_moves"])
+                else:
+                    result = engine.analyze_position(board_before, num_moves=3)
+                    top_moves_str = format_top_moves(result["top_moves"])
+
                 for chunk in coach.compare_moves_stream(
-                    fen=req.fen,
-                    turn=bs.turn,
-                    best_move=best["san"],
-                    best_score=best_score,
-                    user_move=move_san,
-                    user_score=user_score,
-                    delta=delta,
-                    top_moves_str=format_top_moves(top_moves),
-                    heuristics_before=format_heuristics_for_prompt(heuristics_before),
-                    heuristics_after=format_heuristics_for_prompt(heuristics_after),
+                    fen=req.fen_before,
+                    turn="White" if board_before.turn == chess.WHITE else "Black",
+                    best_move=mr.get("best_move_san", ""),
+                    best_score=mr.get("best_move_eval_white", 0),
+                    user_move=mr.get("move_san", ""),
+                    user_score=mr.get("user_move_eval_white", 0),
+                    delta=mr.get("delta_cp_white", 0),
+                    top_moves_str=top_moves_str,
+                    heuristics_before=heuristics_before,
+                    heuristics_after=heuristics_after,
                 ):
-                    yield {"event": "coach_stream", "data": json_module.dumps({"token": chunk})}
+                    yield {"event": "token", "data": json_module.dumps({"token": chunk})}
             except Exception as e:
                 logger.error("Coach streaming error: %s", e)
-                yield {"event": "coach_error", "data": json_module.dumps({"message": str(e)})}
+                yield {"event": "error", "data": json_module.dumps({"message": str(e)})}
+
+        yield {"event": "done", "data": "{}"}
+
+    return EventSourceResponse(event_generator())
+
+
+@app.post("/api/coach/analyze-position")
+async def coach_analyze_position(req: CoachPositionRequest, request: Request):
+    """SSE endpoint for coach analysis of a position."""
+    request_id = str(uuid.uuid4())
+    session = get_session(req.session_id)
+    if not session:
+        return err_response("SESSION_NOT_FOUND", "Session expired.", request_id, 404)
+
+    coach = session["coach"]
+    engine = session["engine"]
+
+    try:
+        board = chess.Board(req.fen)
+    except Exception as e:
+        return err_response("INVALID_FEN", str(e), request_id)
+
+    async def event_generator():
+        yield {"event": "start", "data": "{}"}
+
+        try:
+            result = engine.analyze_position(board, num_moves=3)
+            top_moves_str = format_top_moves(result["top_moves"])
+            heuristics_str = format_heuristics_for_prompt(extract_heuristics(board))
+            turn = "White" if board.turn == chess.WHITE else "Black"
+
+            for chunk in coach.analyze_position_stream(
+                fen=req.fen,
+                turn=turn,
+                top_moves_str=top_moves_str,
+                heuristics_str=heuristics_str,
+            ):
+                yield {"event": "token", "data": json_module.dumps({"token": chunk})}
+        except Exception as e:
+            logger.error("Coach position analysis error: %s", e)
+            yield {"event": "error", "data": json_module.dumps({"message": str(e)})}
 
         yield {"event": "done", "data": "{}"}
 
@@ -350,80 +602,3 @@ async def chat(req: ChatRequest, request: Request):
         return err_response("LLM_CONNECTION_ERROR", str(e), request_id)
 
     return ok_response({"response": response}, request_id)
-
-
-@app.post("/api/pgn/navigate")
-async def pgn_navigate(req: PgnNavigateRequest, request: Request):
-    request_id = str(uuid.uuid4())
-    session = get_session(req.session_id)
-    if not session:
-        return err_response("SESSION_NOT_FOUND", "Session expired.", request_id, 404)
-
-    bs = session["board_state"]
-    if not bs.pgn_mode:
-        return err_response("NO_PGN_LOADED", "No PGN loaded in this session.", request_id)
-
-    action_map = {
-        "next": bs.pgn_next,
-        "prev": bs.pgn_prev,
-        "start": bs.pgn_start,
-        "end": bs.pgn_end,
-    }
-
-    if req.action == "goto":
-        if req.move_index is None:
-            return err_response("INVALID_MOVE_INDEX", "move_index required for goto.", request_id)
-        success, message = bs.navigate_to_move(req.move_index)
-    elif req.action in action_map:
-        success, message = action_map[req.action]()
-    else:
-        return err_response("INVALID_MOVE_INDEX", f"Unknown action: {req.action}", request_id)
-
-    if not success:
-        return err_response("INVALID_MOVE_INDEX", message, request_id)
-
-    return ok_response({
-        "fen": bs.board.fen(),
-        "turn": bs.turn,
-        "move_index": bs.pgn_current_index,
-        "total_moves": len(bs.pgn_moves),
-        "last_move_san": bs.move_history[-1] if bs.move_history else None,
-        "move_display": bs.get_pgn_moves_display(),
-        "legal_moves": bs.get_legal_moves_san(),
-    }, request_id)
-
-
-@app.post("/api/opponent-move")
-async def opponent_move(req: OpponentMoveRequest, request: Request):
-    request_id = str(uuid.uuid4())
-    session = get_session(req.session_id)
-    if not session:
-        return err_response("SESSION_NOT_FOUND", "Session expired.", request_id, 404)
-
-    bs = session["board_state"]
-    engine = session["engine"]
-
-    try:
-        bs.board = chess.Board(req.fen)
-    except Exception as e:
-        return err_response("INVALID_FEN", str(e), request_id)
-
-    try:
-        move_data = engine.get_opponent_move(bs.board, req.elo)
-    except Exception as e:
-        return err_response("ENGINE_ERROR", str(e), request_id)
-
-    parsed = chess.Move.from_uci(move_data["uci"])
-    bs.push_move(parsed)
-
-    try:
-        top_moves = engine.analyze_position(bs.board, num_moves=3)
-    except Exception as e:
-        return err_response("ENGINE_TIMEOUT", str(e), request_id)
-
-    return ok_response({
-        "opponent_move": move_data,
-        "fen_after": bs.board.fen(),
-        "turn_after": bs.turn,
-        "top_moves": serialize_moves(top_moves),
-    }, request_id)

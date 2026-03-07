@@ -4,8 +4,9 @@ import { ColorSelectModal } from './organisms/ColorSelectModal'
 import { AnalysisLayout } from './organisms/AnalysisLayout'
 import { BoardPanel } from './organisms/BoardPanel'
 import { CoachPanel } from './organisms/CoachPanel'
-import { apiFetch, ApiError } from './api'
-import type { AppState, AppAction, AnalysisViewState, ChatMessage, EngineMove, PgnNav } from './types'
+import { apiValidate, apiSessionInit, apiAnalyze, apiMove, apiChat, apiOpponentMove, apiStreamCoach, ApiError } from './api'
+import { mapPositionAnalysis, mapTimeline, mapTimelineUpdate, mapMoveResult, mapPgnMetadata } from './mappers'
+import type { AppState, AppAction, AnalysisViewState, CoachMessage, MoveTimelineEntry } from './types'
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
@@ -37,66 +38,133 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { view: 'input' }
     }
 
-    case 'UPDATE_FEN':
+    case 'NAVIGATE_TIMELINE': {
       if (state.view !== 'analysis') return state
-      return { ...state, data: { ...state.data, currentFen: action.fen, turn: action.turn } }
+      const entry = state.data.position.timeline.entries[action.index]
+      if (!entry) return state
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          position: {
+            ...state.data.position,
+            currentFen: entry.fen,
+            turn: entry.turn,
+            currentTimelineIndex: action.index,
+            timeline: { ...state.data.position.timeline, currentIndex: action.index },
+          },
+          analysis: {
+            ...state.data.analysis,
+            currentAnalysis: state.data.analysis.analysisByFen[entry.fen] ?? null,
+          },
+        },
+      }
+    }
+
+    case 'SET_ANALYSIS': {
+      if (state.view !== 'analysis') return state
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          analysis: {
+            ...state.data.analysis,
+            currentAnalysis: action.analysis,
+            analysisByFen: { ...state.data.analysis.analysisByFen, [action.fen]: action.analysis },
+            isAnalyzingPosition: false,
+            analysisError: null,
+          },
+        },
+      }
+    }
+
+    case 'SET_ANALYZING_POSITION':
+      if (state.view !== 'analysis') return state
+      return { ...state, data: { ...state.data, analysis: { ...state.data.analysis, isAnalyzingPosition: action.analyzing } } }
+
+    case 'TIMELINE_UPDATE': {
+      if (state.view !== 'analysis') return state
+      const { mode, entries, newCurrentIndex } = action.update
+      const current = state.data.position.timeline.entries
+      let newEntries: MoveTimelineEntry[]
+      if (mode === 'append') {
+        newEntries = [...current, ...entries]
+      } else if (mode === 'truncate_and_append') {
+        newEntries = [...current.slice(0, state.data.position.currentTimelineIndex + 1), ...entries]
+      } else {
+        newEntries = current
+      }
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          position: {
+            ...state.data.position,
+            currentTimelineIndex: newCurrentIndex,
+            timeline: { entries: newEntries, currentIndex: newCurrentIndex },
+          },
+        },
+      }
+    }
+
+    case 'MOVE_EXECUTED': {
+      if (state.view !== 'analysis') return state
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          position: {
+            ...state.data.position,
+            currentFen: action.positionAfter.fen,
+            turn: action.positionAfter.turn,
+            currentTimelineIndex: action.positionAfter.timelineIndex,
+          },
+          moveStatus: {
+            ...state.data.moveStatus,
+            isSubmittingMove: false,
+            lastMoveResult: action.moveResult,
+          },
+        },
+      }
+    }
+
+    case 'SET_RIGHT_RAIL_TAB':
+      if (state.view !== 'analysis') return state
+      return { ...state, data: { ...state.data, rightRail: { ...state.data.rightRail, activeTab: action.tab } } }
+
+    case 'TOGGLE_BEST_LINE':
+      if (state.view !== 'analysis') return state
+      return { ...state, data: { ...state.data, rightRail: { ...state.data.rightRail, showBestLine: !state.data.rightRail.showBestLine } } }
+
+    case 'TOGGLE_BEST_MOVE_SOURCE':
+      if (state.view !== 'analysis') return state
+      return { ...state, data: { ...state.data, rightRail: { ...state.data.rightRail, showBestMoveSource: !state.data.rightRail.showBestMoveSource } } }
 
     case 'APPEND_CHAT':
       if (state.view !== 'analysis') return state
-      return { ...state, data: { ...state.data, chatMessages: [...state.data.chatMessages, action.message] } }
+      return { ...state, data: { ...state.data, coach: { ...state.data.coach, messages: [...state.data.coach.messages, action.message] } } }
 
     case 'STREAM_CHAT': {
       if (state.view !== 'analysis') return state
-      const msgs = state.data.chatMessages
+      const msgs = state.data.coach.messages
       const last = msgs[msgs.length - 1]
-      // Replace last message if it was a streaming coach message
       if (last?.role === 'coach' && last.streaming) {
-        return { ...state, data: { ...state.data, chatMessages: [...msgs.slice(0, -1), action.message] } }
+        return { ...state, data: { ...state.data, coach: { ...state.data.coach, messages: [...msgs.slice(0, -1), action.message] } } }
       }
-      return { ...state, data: { ...state.data, chatMessages: [...msgs, action.message] } }
+      return { ...state, data: { ...state.data, coach: { ...state.data.coach, messages: [...msgs, action.message] } } }
     }
 
-    case 'SET_COACH_THINKING':
+    case 'SET_COACH_STREAMING':
       if (state.view !== 'analysis') return state
-      return { ...state, data: { ...state.data, isCoachThinking: action.thinking } }
+      return { ...state, data: { ...state.data, coach: { ...state.data.coach, isCoachStreaming: action.streaming } } }
 
-    case 'UPDATE_TOP_MOVES':
+    case 'SET_MOVE_STATUS':
       if (state.view !== 'analysis') return state
-      return { ...state, data: { ...state.data, topMoves: action.topMoves } }
-
-    case 'UPDATE_PGN_NAV':
-      if (state.view !== 'analysis') return state
-      return { ...state, data: { ...state.data, pgn: action.pgn } }
+      return { ...state, data: { ...state.data, moveStatus: { ...state.data.moveStatus, ...action.status } } }
 
     default:
       return state
   }
-}
-
-// ─── API Response Types ───────────────────────────────────────────────────────
-
-interface ValidateResponseData {
-  valid: boolean
-  fen: string
-  turn: 'White' | 'Black'
-  legal_moves: string[]
-  pgn_metadata: {
-    white?: string
-    black?: string
-    event?: string
-    total_half_moves: number
-    fen_at_start: string
-  } | null
-}
-
-interface AnalyzeResponseData {
-  session_id: string
-  fen: string
-  turn: 'White' | 'Black'
-  top_moves: EngineMove[]
-  heuristics: AnalysisViewState['heuristics']
-  coach_response: string
-  pgn_nav: { move_index: number; total_moves: number; move_display: string } | null
 }
 
 // ─── Loading overlay ─────────────────────────────────────────────────────────
@@ -131,6 +199,7 @@ function LoadingView({ step, onCancel }: { step: 'validating' | 'engine' | 'coac
 export default function App() {
   const [state, dispatch] = useReducer(reducer, { view: 'input' })
   const colorResolveRef = useRef<((c: 'white' | 'black') => void) | null>(null)
+  const coachAbortRef = useRef<AbortController | null>(null)
 
   const handleSubmit = useCallback(async (fen: string, pgn: string, opponentElo: number | null = null) => {
     const ctrl = new AbortController()
@@ -139,19 +208,17 @@ export default function App() {
     try {
       dispatch({ type: 'SET_LOADING_STEP', step: 'validating' })
 
-      const validated = await apiFetch<ValidateResponseData>(
-        '/api/validate',
+      const validated = await apiValidate(
         { fen: fen || null, pgn: pgn || null },
         ctrl.signal,
       )
+      const vData = validated.data!
+      const sourceKind = vData.source_kind
 
       let playerColor: 'white' | 'black'
-
-      if (pgn.trim().length > 0) {
-        // PGN mode: infer from initial turn, no modal needed
-        playerColor = validated.data!.turn === 'Black' ? 'black' : 'white'
+      if (sourceKind === 'pgn') {
+        playerColor = vData.turn === 'Black' ? 'black' : 'white'
       } else {
-        // FEN mode: pause and show color selection modal
         dispatch({ type: 'COLOR_SELECT_NEEDED' })
         playerColor = await new Promise<'white' | 'black'>((resolve) => {
           colorResolveRef.current = resolve
@@ -160,47 +227,281 @@ export default function App() {
 
       dispatch({ type: 'SET_LOADING_STEP', step: 'engine' })
 
-      const analysis = await apiFetch<AnalyzeResponseData>(
-        '/api/analyze',
-        { fen: validated.data!.fen, session_id: null, pgn: pgn || null },
+      const sessionRes = await apiSessionInit(
+        { source_kind: sourceKind, fen: fen || null, pgn: pgn || null },
         ctrl.signal,
       )
+      const sData = sessionRes.data!
 
-      const d = analysis.data!
+      const analyzeRes = await apiAnalyze(
+        { session_id: sData.session_id, fen: sData.initial_position.fen },
+        ctrl.signal,
+      )
+      const aData = analyzeRes.data!
+      const analysis = mapPositionAnalysis(aData.analysis)
+      const timeline = mapTimeline(sData.timeline)
 
-      const pgn_nav: PgnNav | null = d.pgn_nav
-        ? { move_index: d.pgn_nav.move_index, total_moves: d.pgn_nav.total_moves, move_display: d.pgn_nav.move_display }
-        : null
-
-      dispatch({
-        type: 'ANALYSIS_READY',
-        data: {
-          sessionId: d.session_id,
-          currentFen: d.fen,
-          initialFen: d.fen,
-          turn: d.turn,
+      const viewState: AnalysisViewState = {
+        session: {
+          sessionId: sData.session_id,
+          sourceKind: sData.source_kind,
+          pgnMetadata: sData.pgn_metadata ? mapPgnMetadata(sData.pgn_metadata) : null,
+          capabilities: sData.session_capabilities,
           playerColor,
-          moveHistory: [],
-          topMoves: d.top_moves,
-          heuristics: d.heuristics,
-          chatMessages: [
-            {
-              role: 'coach',
-              content: d.coach_response,
-              timestamp: new Date().toISOString(),
-            },
-          ],
-          isCoachThinking: false,
-          pgn: pgn_nav,
           opponentElo,
         },
-      })
+        position: {
+          initialFen: sData.initial_position.fen,
+          currentFen: aData.position.fen,
+          turn: aData.position.turn,
+          currentTimelineIndex: timeline.currentIndex,
+          timeline,
+        },
+        analysis: {
+          currentAnalysis: analysis,
+          analysisByFen: { [aData.position.fen]: analysis },
+          isAnalyzingPosition: false,
+          analysisError: null,
+        },
+        coach: {
+          messages: [],
+          isCoachStreaming: false,
+          coachError: null,
+        },
+        rightRail: {
+          activeTab: 'coach',
+          showBestLine: false,
+          showBestMoveSource: false,
+        },
+        moveStatus: {
+          isSubmittingMove: false,
+          isWaitingForOpponent: false,
+          lastMoveResult: null,
+        },
+      }
+
+      dispatch({ type: 'ANALYSIS_READY', data: viewState })
+
+      // Optional initial coach analysis (non-blocking)
+      const coachCtrl = new AbortController()
+      coachAbortRef.current = coachCtrl
+      dispatch({ type: 'SET_COACH_STREAMING', streaming: true })
+      const coachTokens: string[] = []
+
+      apiStreamCoach(
+        '/api/coach/analyze-position',
+        { session_id: sData.session_id, fen: aData.position.fen, analysis_context: aData.analysis },
+        {
+          onToken: (token) => {
+            coachTokens.push(token)
+            dispatch({ type: 'STREAM_CHAT', message: { role: 'coach', content: coachTokens.join(''), timestamp: new Date().toISOString(), streaming: true } })
+          },
+          onSkip: () => {
+            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
+          },
+          onDone: () => {
+            if (coachTokens.length > 0) {
+              dispatch({ type: 'STREAM_CHAT', message: { role: 'coach', content: coachTokens.join(''), timestamp: new Date().toISOString() } })
+            }
+            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
+          },
+          onError: () => {
+            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
+          },
+        },
+        coachCtrl.signal,
+      ).catch(() => {})
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return
       const message = err instanceof ApiError ? err.message : 'Connection failed. Is the backend running?'
       dispatch({ type: 'ERROR', message, prefill: { fen, pgn } })
     }
   }, [])
+
+  const handleNavigate = useCallback(async (index: number) => {
+    if (state.view !== 'analysis') return
+    const { data } = state
+    const entry = data.position.timeline.entries[index]
+    if (!entry) return
+
+    dispatch({ type: 'NAVIGATE_TIMELINE', index })
+
+    // If we already have cached analysis, skip the fetch
+    if (data.analysis.analysisByFen[entry.fen]) return
+
+    dispatch({ type: 'SET_ANALYZING_POSITION', analyzing: true })
+    try {
+      const res = await apiAnalyze({ session_id: data.session.sessionId, fen: entry.fen })
+      if (res.data) {
+        dispatch({ type: 'SET_ANALYSIS', fen: entry.fen, analysis: mapPositionAnalysis(res.data.analysis) })
+      }
+    } catch {
+      dispatch({ type: 'SET_ANALYZING_POSITION', analyzing: false })
+    }
+  }, [state])
+
+  const handleMoveAttempt = useCallback(async (san: string, fenBefore: string) => {
+    if (state.view !== 'analysis') return
+    const { data } = state
+
+    dispatch({ type: 'SET_MOVE_STATUS', status: { isSubmittingMove: true } })
+
+    // Cancel any in-flight coach stream
+    coachAbortRef.current?.abort()
+
+    try {
+      const res = await apiMove({
+        session_id: data.session.sessionId,
+        fen_before: fenBefore,
+        move: san,
+      })
+      if (!res.data) return
+
+      const d = res.data
+      const moveResult = mapMoveResult(d.move_result)
+      const analysisAfter = mapPositionAnalysis(d.analysis_after)
+      const timelineUpdate = mapTimelineUpdate(d.timeline_update)
+
+      if (!moveResult.isLegal) {
+        // Rollback
+        dispatch({ type: 'SET_MOVE_STATUS', status: { isSubmittingMove: false } })
+        dispatch({
+          type: 'APPEND_CHAT',
+          message: { role: 'system', content: 'Illegal move.', timestamp: new Date().toISOString() },
+        })
+        return
+      }
+
+      dispatch({
+        type: 'MOVE_EXECUTED',
+        positionAfter: { fen: d.position_after.fen, turn: d.position_after.turn, timelineIndex: timelineUpdate.newCurrentIndex },
+        moveResult,
+      })
+      dispatch({ type: 'TIMELINE_UPDATE', update: timelineUpdate })
+      dispatch({ type: 'SET_ANALYSIS', fen: d.position_after.fen, analysis: analysisAfter })
+
+      // Coach stream for move analysis (non-blocking)
+      const coachCtrl = new AbortController()
+      coachAbortRef.current = coachCtrl
+      dispatch({ type: 'SET_COACH_STREAMING', streaming: true })
+      const coachTokens: string[] = []
+
+      apiStreamCoach(
+        '/api/coach/analyze-move',
+        {
+          session_id: data.session.sessionId,
+          fen_before: fenBefore,
+          fen_after: d.position_after.fen,
+          move_result: d.move_result,
+          analysis_before: null,
+          analysis_after: d.analysis_after,
+        },
+        {
+          onToken: (token) => {
+            coachTokens.push(token)
+            dispatch({ type: 'STREAM_CHAT', message: { role: 'coach', content: coachTokens.join(''), timestamp: new Date().toISOString(), streaming: true } })
+          },
+          onSkip: () => {
+            dispatch({
+              type: 'APPEND_CHAT',
+              message: { role: 'coach', content: 'Good move!', timestamp: new Date().toISOString() },
+            })
+            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
+          },
+          onDone: () => {
+            if (coachTokens.length > 0) {
+              dispatch({ type: 'STREAM_CHAT', message: { role: 'coach', content: coachTokens.join(''), timestamp: new Date().toISOString() } })
+            }
+            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
+
+            // Trigger opponent move if applicable
+            if (data.session.opponentElo) {
+              handleOpponentMove(d.position_after.fen)
+            }
+          },
+          onError: () => {
+            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
+            if (data.session.opponentElo) {
+              handleOpponentMove(d.position_after.fen)
+            }
+          },
+        },
+        coachCtrl.signal,
+      ).catch(() => {})
+    } catch (err) {
+      dispatch({ type: 'SET_MOVE_STATUS', status: { isSubmittingMove: false } })
+      const message = err instanceof Error ? err.message : 'Move failed.'
+      dispatch({
+        type: 'APPEND_CHAT',
+        message: { role: 'system', content: `Analysis failed: ${message}. Try again.`, timestamp: new Date().toISOString() },
+      })
+    }
+  }, [state])
+
+  const handleOpponentMove = useCallback(async (fen: string) => {
+    if (state.view !== 'analysis') return
+    const { data } = state
+    if (!data.session.opponentElo) return
+
+    dispatch({ type: 'SET_MOVE_STATUS', status: { isWaitingForOpponent: true } })
+
+    try {
+      const res = await apiOpponentMove({
+        session_id: data.session.sessionId,
+        fen,
+        elo: data.session.opponentElo,
+      })
+      if (res.data) {
+        const d = res.data
+        const timelineUpdate = mapTimelineUpdate(d.timeline_update)
+        const analysisAfter = mapPositionAnalysis(d.analysis_after)
+        const oppResult = mapMoveResult(d.opponent_move)
+
+        dispatch({ type: 'TIMELINE_UPDATE', update: timelineUpdate })
+        dispatch({ type: 'SET_ANALYSIS', fen: d.position_after.fen, analysis: analysisAfter })
+        dispatch({
+          type: 'MOVE_EXECUTED',
+          positionAfter: { fen: d.position_after.fen, turn: d.position_after.turn, timelineIndex: timelineUpdate.newCurrentIndex },
+          moveResult: oppResult,
+        })
+        dispatch({
+          type: 'APPEND_CHAT',
+          message: { role: 'system', content: `Opponent played ${oppResult.moveSan}`, timestamp: new Date().toISOString() },
+        })
+      }
+    } catch {
+      dispatch({
+        type: 'APPEND_CHAT',
+        message: { role: 'system', content: 'Opponent move failed. Try making another move.', timestamp: new Date().toISOString() },
+      })
+    } finally {
+      dispatch({ type: 'SET_MOVE_STATUS', status: { isWaitingForOpponent: false } })
+    }
+  }, [state])
+
+  const handleChatSubmit = useCallback(async (text: string) => {
+    if (state.view !== 'analysis') return
+    const { data } = state
+
+    dispatch({ type: 'APPEND_CHAT', message: { role: 'user', content: text, timestamp: new Date().toISOString() } })
+    dispatch({ type: 'SET_COACH_STREAMING', streaming: true })
+
+    try {
+      const res = await apiChat({
+        session_id: data.session.sessionId,
+        fen: data.position.currentFen,
+        message: text,
+      })
+      if (res.data) {
+        dispatch({ type: 'APPEND_CHAT', message: { role: 'coach', content: res.data.response, timestamp: new Date().toISOString() } })
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Connection lost.'
+      dispatch({ type: 'APPEND_CHAT', message: { role: 'system', content: `Error: ${message}`, timestamp: new Date().toISOString() } })
+    } finally {
+      dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
+    }
+  }, [state])
 
   if (state.view === 'input') {
     return (
@@ -230,39 +531,41 @@ export default function App() {
     )
   }
 
-  // Analysis view
   const { data } = state
 
   return (
     <AnalysisLayout
       boardPanel={
         <BoardPanel
-          sessionId={data.sessionId}
-          currentFen={data.currentFen}
-          turn={data.turn}
-          playerColor={data.playerColor}
-          topMoves={data.topMoves}
-          pgn={data.pgn}
-          opponentElo={data.opponentElo}
-          onFenChange={(fen, turn) => dispatch({ type: 'UPDATE_FEN', fen, turn })}
-          onTopMovesChange={(topMoves) => dispatch({ type: 'UPDATE_TOP_MOVES', topMoves })}
-          onCoachMessage={(message) => dispatch({ type: 'APPEND_CHAT', message })}
-          onCoachStream={(message) => dispatch({ type: 'STREAM_CHAT', message })}
-          onSetThinking={(thinking) => dispatch({ type: 'SET_COACH_THINKING', thinking })}
-          onPgnNavigate={(pgn, fen, turn) => {
-            dispatch({ type: 'UPDATE_PGN_NAV', pgn })
-            dispatch({ type: 'UPDATE_FEN', fen, turn })
-          }}
+          currentFen={data.position.currentFen}
+          turn={data.position.turn}
+          playerColor={data.session.playerColor}
+          topMoves={data.analysis.currentAnalysis?.topMoves ?? []}
+          showBestLine={data.rightRail.showBestLine}
+          showBestMoveSource={data.rightRail.showBestMoveSource}
+          isSubmittingMove={data.moveStatus.isSubmittingMove}
+          isWaitingForOpponent={data.moveStatus.isWaitingForOpponent}
+          lastMoveResult={data.moveStatus.lastMoveResult}
+          onMoveAttempt={handleMoveAttempt}
         />
       }
       coachPanel={
         <CoachPanel
-          sessionId={data.sessionId}
-          currentFen={data.currentFen}
-          messages={data.chatMessages}
-          isThinking={data.isCoachThinking}
-          onNewMessage={(message: ChatMessage) => dispatch({ type: 'APPEND_CHAT', message })}
-          onSetThinking={(thinking: boolean) => dispatch({ type: 'SET_COACH_THINKING', thinking })}
+          currentFen={data.position.currentFen}
+          activeTab={data.rightRail.activeTab}
+          showBestLine={data.rightRail.showBestLine}
+          showBestMoveSource={data.rightRail.showBestMoveSource}
+          hasAnalysis={data.analysis.currentAnalysis !== null}
+          messages={data.coach.messages}
+          isCoachStreaming={data.coach.isCoachStreaming}
+          timeline={data.position.timeline}
+          currentTimelineIndex={data.position.currentTimelineIndex}
+          isSubmittingMove={data.moveStatus.isSubmittingMove}
+          onTabChange={(tab) => dispatch({ type: 'SET_RIGHT_RAIL_TAB', tab })}
+          onToggleBestLine={() => dispatch({ type: 'TOGGLE_BEST_LINE' })}
+          onToggleBestMoveSource={() => dispatch({ type: 'TOGGLE_BEST_MOVE_SOURCE' })}
+          onNavigate={handleNavigate}
+          onChatSubmit={handleChatSubmit}
           onReset={() => dispatch({ type: 'RESET' })}
         />
       }

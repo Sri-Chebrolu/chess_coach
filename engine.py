@@ -101,14 +101,21 @@ class EngineAnalysis:
             )
             # #endregion agent log
 
+            first_move = info["pv"][0]
             moves.append({
-                "move": info["pv"][0],
-                "san": board.san(info["pv"][0]),
-                "score_cp": score.score(mate_score=10000),
+                "move": first_move,
+                "san": board.san(first_move),
+                "uci": first_move.uci(),
+                "from_square": chess.square_name(first_move.from_square),
+                "to_square": chess.square_name(first_move.to_square),
+                "score_cp_white": score.score(mate_score=10000),
                 "mate": score.mate(),
                 "pv": pv_san,
             })
-        return moves
+        return {
+            "top_moves": moves,
+            "score_semantics": {"perspective": "white", "normalized_for_turn": False},
+        }
 
     def get_opponent_move(self, board: chess.Board, elo: int) -> dict:
         """Get a move at a specific ELO strength for computer opponent."""
@@ -120,8 +127,8 @@ class EngineAnalysis:
         return {
             "san": board.san(move),
             "uci": move.uci(),
-            "from": chess.square_name(move.from_square),
-            "to": chess.square_name(move.to_square),
+            "from_square": chess.square_name(move.from_square),
+            "to_square": chess.square_name(move.to_square),
         }
 
     def evaluate_move(self, board: chess.Board, move: chess.Move):
@@ -136,6 +143,9 @@ class EngineAnalysis:
         return {
             "move": move,
             "san": board.san(move),
-            "score_cp": score.score(mate_score=10000),
+            "uci": move.uci(),
+            "from_square": chess.square_name(move.from_square),
+            "to_square": chess.square_name(move.to_square),
+            "score_cp_white": score.score(mate_score=10000),
             "mate": score.mate(),
         }

@@ -219,3 +219,69 @@ class BoardState:
         self.pgn_game = None
         self.pgn_moves = []
         self.pgn_current_index = 0
+
+    # ─── Timeline helpers ────────────────────────────────────────────────────
+
+    @staticmethod
+    def _move_number_label(half_move_index: int) -> str | None:
+        """Return '1.' for white's first move, '1...' for black's first, etc."""
+        if half_move_index == 0:
+            return None
+        move_num = ((half_move_index - 1) // 2) + 1
+        is_white = (half_move_index % 2) == 1
+        return f"{move_num}." if is_white else f"{move_num}..."
+
+    def build_timeline(self, pgn_string: str) -> list[dict]:
+        """Parse a PGN string and return a full timeline of entries."""
+        game, error = self._parse_pgn_string(pgn_string)
+        if error:
+            return []
+
+        if "FEN" in game.headers:
+            start_fen = game.headers["FEN"]
+            board = chess.Board(start_fen)
+        else:
+            board = chess.Board()
+            start_fen = board.fen()
+
+        entries = [{
+            "index": 0,
+            "fen": start_fen,
+            "turn": "White" if board.turn == chess.WHITE else "Black",
+            "san": None,
+            "move_number_label": None,
+            "source": "initial",
+        }]
+
+        node = game
+        idx = 1
+        while node.variations:
+            next_node = node.variation(0)
+            move = next_node.move
+            san = board.san(move)
+            board.push(move)
+            entries.append({
+                "index": idx,
+                "fen": board.fen(),
+                "turn": "White" if board.turn == chess.WHITE else "Black",
+                "san": san,
+                "move_number_label": self._move_number_label(idx),
+                "source": "pgn_mainline",
+            })
+            node = next_node
+            idx += 1
+
+        return entries
+
+    @staticmethod
+    def build_initial_timeline(fen: str) -> list[dict]:
+        """Return a single-entry timeline for a FEN session."""
+        board = chess.Board(fen)
+        return [{
+            "index": 0,
+            "fen": fen,
+            "turn": "White" if board.turn == chess.WHITE else "Black",
+            "san": None,
+            "move_number_label": None,
+            "source": "initial",
+        }]

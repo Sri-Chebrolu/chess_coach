@@ -14,7 +14,7 @@ logging.basicConfig(
 def format_top_moves(moves: list[dict]) -> str:
     lines = []
     for i, m in enumerate(moves, 1):
-        score = f"mate in {m['mate']}" if m["mate"] else f"{m['score_cp']} cp"
+        score = f"mate in {m['mate']}" if m["mate"] else f"{m['score_cp_white']} cp"
         pv = " → ".join(m["pv"])
         lines.append(f"  {i}. {m['san']} ({score}) — line: {pv}")
     return "\n".join(lines)
@@ -88,7 +88,8 @@ def main():
                 print(", ".join(board_state.get_legal_moves_san()))
             elif command == "analyze":
                 print("Analyzing position...")
-                top_moves = engine.analyze_position(board_state.board)
+                result = engine.analyze_position(board_state.board)
+                top_moves = result["top_moves"]
                 heuristics = extract_heuristics(board_state.board)
                 response = coach.analyze_position(
                     fen=board_state.board.fen(),
@@ -105,10 +106,11 @@ def main():
                     continue
 
                 print(f"Evaluating {board_state.board.san(move)}...")
-                top_moves = engine.analyze_position(board_state.board)
+                result = engine.analyze_position(board_state.board)
+                top_moves = result["top_moves"]
                 user_eval = engine.evaluate_move(board_state.board, move)
                 best = top_moves[0]
-                delta = best["score_cp"] - (-user_eval["score_cp"])
+                delta = best["score_cp_white"] - (-user_eval["score_cp_white"])
 
                 heuristics_before = extract_heuristics(board_state.board)
                 temp_board = board_state.board.copy()
@@ -118,9 +120,9 @@ def main():
                 response = coach.compare_moves(
                     fen=board_state.board.fen(),
                     turn=board_state.turn,
-                    best_move=best["san"], best_score=best["score_cp"],
+                    best_move=best["san"], best_score=best["score_cp_white"],
                     user_move=board_state.board.san(move),
-                    user_score=user_eval["score_cp"],
+                    user_score=user_eval["score_cp_white"],
                     delta=delta,
                     top_moves_str=format_top_moves(top_moves),
                     heuristics_before=format_heuristics_for_prompt(heuristics_before),

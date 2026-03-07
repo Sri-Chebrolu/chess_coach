@@ -1,4 +1,20 @@
 import type { ApiResponse } from './types'
+import type {
+  ApiValidateRequest,
+  ApiValidateResponse,
+  ApiSessionInitRequest,
+  ApiSessionInitResponse,
+  ApiAnalyzeRequest,
+  ApiAnalyzeResponse,
+  ApiMoveRequest,
+  ApiMoveResponse,
+  ApiChatRequest,
+  ApiChatResponse,
+  ApiOpponentMoveRequest,
+  ApiOpponentMoveResponse,
+  ApiCoachAnalyzeMoveRequest,
+  ApiCoachAnalyzePositionRequest,
+} from './api-types'
 
 export class ApiError extends Error {
   constructor(
@@ -39,22 +55,45 @@ export async function apiFetch<T>(
   return json
 }
 
-export interface SSECallbacks<T> {
-  onMoveData: (data: T) => void
-  onCoachToken: (token: string) => void
-  onCoachSkip: (reason: string) => void
+// ─── Typed API Wrappers ──────────────────────────────────────────────────────
+
+export function apiValidate(body: ApiValidateRequest, signal?: AbortSignal) {
+  return apiFetch<ApiValidateResponse['data']>('/api/validate', body, signal)
+}
+
+export function apiSessionInit(body: ApiSessionInitRequest, signal?: AbortSignal) {
+  return apiFetch<ApiSessionInitResponse['data']>('/api/session/init', body, signal)
+}
+
+export function apiAnalyze(body: ApiAnalyzeRequest, signal?: AbortSignal) {
+  return apiFetch<ApiAnalyzeResponse['data']>('/api/analyze', body, signal)
+}
+
+export function apiMove(body: ApiMoveRequest, signal?: AbortSignal) {
+  return apiFetch<ApiMoveResponse['data']>('/api/move', body, signal)
+}
+
+export function apiChat(body: ApiChatRequest, signal?: AbortSignal) {
+  return apiFetch<ApiChatResponse['data']>('/api/chat', body, signal)
+}
+
+export function apiOpponentMove(body: ApiOpponentMoveRequest, signal?: AbortSignal) {
+  return apiFetch<ApiOpponentMoveResponse['data']>('/api/opponent-move', body, signal)
+}
+
+// ─── SSE Streaming ───────────────────────────────────────────────────────────
+
+export interface CoachStreamCallbacks {
+  onToken: (token: string) => void
+  onSkip: (reason: string) => void
   onDone: () => void
   onError: (error: Error) => void
 }
 
-/**
- * Consume an SSE stream from /api/move.
- * Events: move_data, coach_stream, coach_skip, coach_error, done
- */
-export async function apiStreamMove<T>(
+export async function apiStreamCoach(
   url: string,
-  body: object,
-  callbacks: SSECallbacks<T>,
+  body: ApiCoachAnalyzeMoveRequest | ApiCoachAnalyzePositionRequest,
+  callbacks: CoachStreamCallbacks,
   signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch(url, {
@@ -65,7 +104,6 @@ export async function apiStreamMove<T>(
   })
 
   if (!response.ok || !response.body) {
-    // Non-SSE error response (e.g. 400/404) — try to parse as JSON
     const json = await response.json().catch(() => null)
     const msg = json?.error?.message ?? `Server error (${response.status})`
     callbacks.onError(new ApiError(json?.error?.code ?? 'UNKNOWN', msg))
@@ -93,16 +131,15 @@ export async function apiStreamMove<T>(
         try {
           const parsed = JSON.parse(data)
           switch (currentEvent) {
-            case 'move_data':
-              callbacks.onMoveData(parsed)
+            case 'start':
               break
-            case 'coach_stream':
-              callbacks.onCoachToken(parsed.token)
+            case 'token':
+              callbacks.onToken(parsed.token)
               break
-            case 'coach_skip':
-              callbacks.onCoachSkip(parsed.reason)
+            case 'skip':
+              callbacks.onSkip(parsed.reason)
               break
-            case 'coach_error':
+            case 'error':
               callbacks.onError(new Error(parsed.message))
               break
             case 'done':

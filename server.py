@@ -165,12 +165,6 @@ class CoachAnalyzeRequest(BaseModel):
     analysis_after: dict | None = None
 
 
-class CoachPositionRequest(BaseModel):
-    session_id: str
-    fen: str
-    analysis_context: dict | None = None
-
-
 BEST_MOVE_THRESHOLD = 30  # centipawns
 
 
@@ -537,47 +531,6 @@ async def coach_analyze(req: CoachAnalyzeRequest, request: Request):
             except Exception as e:
                 logger.error("Coach streaming error: %s", e)
                 yield {"event": "error", "data": json_module.dumps({"message": str(e)})}
-
-        yield {"event": "done", "data": "{}"}
-
-    return EventSourceResponse(event_generator())
-
-
-@app.post("/api/coach/analyze-position")
-async def coach_analyze_position(req: CoachPositionRequest, request: Request):
-    """SSE endpoint for coach analysis of a position."""
-    request_id = str(uuid.uuid4())
-    session = get_session(req.session_id)
-    if not session:
-        return err_response("SESSION_NOT_FOUND", "Session expired.", request_id, 404)
-
-    coach = session["coach"]
-    engine = session["engine"]
-
-    try:
-        board = chess.Board(req.fen)
-    except Exception as e:
-        return err_response("INVALID_FEN", str(e), request_id)
-
-    async def event_generator():
-        yield {"event": "start", "data": "{}"}
-
-        try:
-            result = engine.analyze_position(board, num_moves=3)
-            top_moves_str = format_top_moves(result["top_moves"])
-            heuristics_str = format_heuristics_for_prompt(extract_heuristics(board))
-            turn = "White" if board.turn == chess.WHITE else "Black"
-
-            for chunk in coach.analyze_position_stream(
-                fen=req.fen,
-                turn=turn,
-                top_moves_str=top_moves_str,
-                heuristics_str=heuristics_str,
-            ):
-                yield {"event": "token", "data": json_module.dumps({"token": chunk})}
-        except Exception as e:
-            logger.error("Coach position analysis error: %s", e)
-            yield {"event": "error", "data": json_module.dumps({"message": str(e)})}
 
         yield {"event": "done", "data": "{}"}
 

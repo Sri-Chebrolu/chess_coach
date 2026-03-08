@@ -137,12 +137,6 @@ export interface ApiCoachAnalyzeMoveRequest {
   analysis_after?: ApiPositionAnalysis | null
 }
 
-export interface ApiCoachAnalyzePositionRequest {
-  session_id: string
-  fen: string
-  analysis_context?: ApiPositionAnalysis | null
-}
-
 export interface ApiChatRequest {
   session_id: string
   fen: string

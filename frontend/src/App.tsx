@@ -313,36 +313,6 @@ export default function App() {
       }
 
       dispatch({ type: 'ANALYSIS_READY', data: viewState })
-
-      // Optional initial coach analysis (non-blocking)
-      const coachCtrl = new AbortController()
-      coachAbortRef.current = coachCtrl
-      dispatch({ type: 'SET_COACH_STREAMING', streaming: true })
-      const coachTokens: string[] = []
-
-      apiStreamCoach(
-        '/api/coach/analyze-position',
-        { session_id: sData.session_id, fen: aData.position.fen, analysis_context: aData.analysis },
-        {
-          onToken: (token) => {
-            coachTokens.push(token)
-            dispatch({ type: 'STREAM_CHAT', message: { role: 'coach', content: coachTokens.join(''), timestamp: new Date().toISOString(), streaming: true } })
-          },
-          onSkip: () => {
-            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
-          },
-          onDone: () => {
-            if (coachTokens.length > 0) {
-              dispatch({ type: 'STREAM_CHAT', message: { role: 'coach', content: coachTokens.join(''), timestamp: new Date().toISOString() } })
-            }
-            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
-          },
-          onError: () => {
-            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
-          },
-        },
-        coachCtrl.signal,
-      ).catch(() => {})
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return
       const message = err instanceof ApiError ? err.message : 'Connection failed. Is the backend running?'

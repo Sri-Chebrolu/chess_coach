@@ -125,7 +125,7 @@ test.describe('Error path - Invalid FEN', () => {
 })
 
 test.describe('Happy path - FEN analysis', () => {
-  test('transitions to analysis view with board, engine lines, and chat', async ({ page }) => {
+  test('transitions to analysis view with board, engine lines, and empty coach history', async ({ page }) => {
     setupApiMocks(page)
     await page.goto('/')
 
@@ -139,8 +139,7 @@ test.describe('Happy path - FEN analysis', () => {
     await expect(page.getByTestId('eval-bar')).toBeVisible()
     await expect(page.getByTestId('engine-line-0')).toBeVisible()
     await expect(page.getByTestId('engine-line-0')).toContainText('d5')
-    await expect(page.getByTestId('chat-message-0')).toBeVisible()
-    await expect(page.getByTestId('chat-message-0')).toContainText(/position|e4|center/i)
+    await expect(page.getByTestId(/chat-message-\d+/)).toHaveCount(0)
   })
 })
 

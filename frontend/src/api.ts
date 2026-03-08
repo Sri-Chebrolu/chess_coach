@@ -13,7 +13,6 @@ import type {
   ApiOpponentMoveRequest,
   ApiOpponentMoveResponse,
   ApiCoachAnalyzeMoveRequest,
-  ApiCoachAnalyzePositionRequest,
 } from './api-types'
 
 export class ApiError extends Error {
@@ -92,7 +91,7 @@ export interface CoachStreamCallbacks {
 
 export async function apiStreamCoach(
   url: string,
-  body: ApiCoachAnalyzeMoveRequest | ApiCoachAnalyzePositionRequest,
+  body: ApiCoachAnalyzeMoveRequest,
   callbacks: CoachStreamCallbacks,
   signal?: AbortSignal,
 ): Promise<void> {

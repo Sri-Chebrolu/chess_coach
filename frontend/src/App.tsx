@@ -276,6 +276,9 @@ export default function App() {
           sourceKind: sData.source_kind,
           pgnMetadata: sData.pgn_metadata ? mapPgnMetadata(sData.pgn_metadata) : null,
           capabilities: sData.session_capabilities,
+          // Keep playerColor in frontend state. A future board-flip feature may let the
+          // user change sides dynamically; persisting color on the backend session would
+          // force us to keep updating server-side session state to match that UI choice.
           playerColor,
           opponentElo,
         },
@@ -520,6 +523,7 @@ export default function App() {
         session_id: data.session.sessionId,
         fen: data.position.currentFen,
         message: text,
+        player_color: data.session.playerColor,
       })
       if (res.data) {
         dispatch({ type: 'APPEND_CHAT', message: { role: 'coach', content: res.data.response, timestamp: new Date().toISOString() } })

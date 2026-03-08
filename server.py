@@ -9,6 +9,7 @@ load_dotenv()  # Must be before any local imports that read env vars
 
 import json as json_module
 import chess
+from typing import Literal
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -39,14 +40,16 @@ def format_top_moves(moves: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def enrich_message(user_message: str, fen: str) -> str:
+def enrich_message(user_message: str, fen: str, player_color: Literal["white", "black"]) -> str:
     board = chess.Board(fen)
     heuristics = extract_heuristics(board)
     heuristics_str = format_heuristics_for_prompt(heuristics)
+    student_color = "White" if player_color == "white" else "Black"
     return (
         f"=== CURRENT BOARD STATE (Ground Truth) ===\n"
         f"FEN: {fen}\n"
-        f"Side to move: {'White' if board.turn else 'Black'}\n\n"
+        f"Side to move: {'White' if board.turn else 'Black'}\n"
+        f"Student plays: {student_color}\n\n"
         f"POSITIONAL FEATURES:\n{heuristics_str}\n\n"
         f"=== STUDENT'S QUESTION ===\n"
         f"{user_message}"
@@ -144,6 +147,7 @@ class ChatRequest(BaseModel):
     session_id: str
     message: str
     fen: str
+    player_color: Literal["white", "black"]
 
 
 class OpponentMoveRequest(BaseModel):
@@ -592,7 +596,7 @@ async def chat(req: ChatRequest, request: Request):
         return err_response("SESSION_NOT_FOUND", "Session expired.", request_id, 404)
 
     try:
-        enriched = enrich_message(req.message, req.fen)
+        enriched = enrich_message(req.message, req.fen, req.player_color)
     except Exception as e:
         return err_response("INVALID_FEN", str(e), request_id)
 

@@ -147,6 +147,7 @@ export interface ApiChatRequest {
   session_id: string
   fen: string
   message: string
+  player_color: 'white' | 'black'
 }
 
 export interface ApiChatResponse {

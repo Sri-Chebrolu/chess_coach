@@ -198,8 +198,45 @@ function LoadingView({ step, onCancel }: { step: 'validating' | 'engine' | 'coac
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, { view: 'input' })
-  const colorResolveRef = useRef<((c: 'white' | 'black') => void) | null>(null)
+  const colorRequestRef = useRef<{
+    resolve: (color: 'white' | 'black') => void
+    reject: (reason?: unknown) => void
+  } | null>(null)
   const coachAbortRef = useRef<AbortController | null>(null)
+
+  const requestPlayerColor = useCallback((signal: AbortSignal) => {
+    dispatch({ type: 'COLOR_SELECT_NEEDED' })
+
+    return new Promise<'white' | 'black'>((resolve, reject) => {
+      const request: NonNullable<typeof colorRequestRef.current> = {
+        resolve: (color: 'white' | 'black') => {
+          cleanup()
+          resolve(color)
+        },
+        reject: (reason?: unknown) => {
+          cleanup()
+          reject(reason)
+        },
+      }
+
+      const onAbort = () => {
+        cleanup()
+        reject(new DOMException('The operation was aborted.', 'AbortError'))
+      }
+
+      const cleanup = () => {
+        if (colorRequestRef.current === request) {
+          colorRequestRef.current = null
+        }
+        signal.removeEventListener('abort', onAbort)
+      }
+
+      colorRequestRef.current = request
+
+      signal.addEventListener('abort', onAbort, { once: true })
+      if (signal.aborted) onAbort()
+    })
+  }, [])
 
   const handleSubmit = useCallback(async (fen: string, pgn: string, opponentElo: number | null = null) => {
     const ctrl = new AbortController()
@@ -215,15 +252,7 @@ export default function App() {
       const vData = validated.data!
       const sourceKind = vData.source_kind
 
-      let playerColor: 'white' | 'black'
-      if (sourceKind === 'pgn') {
-        playerColor = vData.turn === 'Black' ? 'black' : 'white'
-      } else {
-        dispatch({ type: 'COLOR_SELECT_NEEDED' })
-        playerColor = await new Promise<'white' | 'black'>((resolve) => {
-          colorResolveRef.current = resolve
-        })
-      }
+      const playerColor = await requestPlayerColor(ctrl.signal)
 
       dispatch({ type: 'SET_LOADING_STEP', step: 'engine' })
 
@@ -316,7 +345,7 @@ export default function App() {
       const message = err instanceof ApiError ? err.message : 'Connection failed. Is the backend running?'
       dispatch({ type: 'ERROR', message, prefill: { fen, pgn } })
     }
-  }, [])
+  }, [requestPlayerColor])
 
   const handleNavigate = useCallback(async (index: number) => {
     if (state.view !== 'analysis') return
@@ -516,8 +545,11 @@ export default function App() {
   if (state.view === 'color_select') {
     return (
       <ColorSelectModal
-        onSelect={(color) => { colorResolveRef.current?.(color) }}
-        onCancel={() => dispatch({ type: 'RESET' })}
+        onSelect={(color) => { colorRequestRef.current?.resolve(color) }}
+        onCancel={() => {
+          colorRequestRef.current?.reject(new DOMException('The operation was aborted.', 'AbortError'))
+          dispatch({ type: 'RESET' })
+        }}
       />
     )
   }

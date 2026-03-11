@@ -15,7 +15,7 @@ logger = logging.getLogger("chess_coach")
 
 sessions: dict[str, dict] = {}
 
-TTL_MINUTES = 30
+TTL_MINUTES = 60
 CLEANUP_INTERVAL_SECONDS = 300  # 5 minutes
 
 

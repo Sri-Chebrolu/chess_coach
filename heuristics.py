@@ -154,8 +154,10 @@ def format_heuristics_for_prompt(heuristics: dict) -> str:
     for color in ["white", "black"]:
         ks = heuristics["king_safety"][color]
         status = "castled" if ks["castled"] else "uncastled"
+        check_status = "in check" if ks["in_check"] else "not in check"
         lines.append(
             f"KING SAFETY ({color}): {status}, "
+            f"{check_status}, "
             f"{ks['pawn_shield']} shield pawns, "
             f"{ks['attackers']} attackers"
         )

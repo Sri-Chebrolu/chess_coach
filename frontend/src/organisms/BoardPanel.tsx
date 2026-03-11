@@ -76,11 +76,11 @@ export function BoardPanel({
   if (lastMoveResult) {
     customSquareStyles[lastMoveResult.fromSquare] = {
       ...customSquareStyles[lastMoveResult.fromSquare],
-      boxShadow: 'inset 0 0 0 3px rgba(255, 255, 0, 0.4)',
+      boxShadow: 'inset 0 0 0 10px rgba(0, 0, 0, 0.4)',
     }
     customSquareStyles[lastMoveResult.toSquare] = {
       ...customSquareStyles[lastMoveResult.toSquare],
-      boxShadow: 'inset 0 0 0 3px rgba(255, 255, 0, 0.4)',
+      boxShadow: 'inset 0 0 0 10px rgba(0, 0, 0, 0.4)',
     }
   }
 

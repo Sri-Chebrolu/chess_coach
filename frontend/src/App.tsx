@@ -40,22 +40,21 @@ function reducer(state: AppState, action: AppAction): AppState {
 
     case 'NAVIGATE_TIMELINE': {
       if (state.view !== 'analysis') return state
-      const entry = state.data.position.timeline.entries[action.index]
-      if (!entry) return state
       return {
         ...state,
         data: {
           ...state.data,
           position: {
             ...state.data.position,
-            currentFen: entry.fen,
-            turn: entry.turn,
+            currentFen: action.currentFen,
+            previousFen: action.previousFen,
+            turn: action.turn,
             currentTimelineIndex: action.index,
             timeline: { ...state.data.position.timeline, currentIndex: action.index },
           },
           analysis: {
             ...state.data.analysis,
-            currentAnalysis: state.data.analysis.analysisByFen[entry.fen] ?? null,
+            currentAnalysis: action.currentAnalysis,
           },
         },
       }
@@ -285,6 +284,7 @@ export default function App() {
         position: {
           initialFen: sData.initial_position.fen,
           currentFen: aData.position.fen,
+          previousFen: null,
           turn: aData.position.turn,
           currentTimelineIndex: timeline.currentIndex,
           timeline,
@@ -325,8 +325,17 @@ export default function App() {
     const { data } = state
     const entry = data.position.timeline.entries[index]
     if (!entry) return
+    const previousFen = index > 0 ? data.position.timeline.entries[index - 1]?.fen ?? null : null
+    const currentAnalysis = data.analysis.analysisByFen[entry.fen] ?? null
 
-    dispatch({ type: 'NAVIGATE_TIMELINE', index })
+    dispatch({
+      type: 'NAVIGATE_TIMELINE',
+      index,
+      currentFen: entry.fen,
+      previousFen,
+      turn: entry.turn,
+      currentAnalysis,
+    })
 
     // If we already have cached analysis, skip the fetch
     if (data.analysis.analysisByFen[entry.fen]) return

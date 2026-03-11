@@ -72,6 +72,7 @@ export interface SessionState {
 export interface PositionState {
   initialFen: string
   currentFen: string
+  previousFen: string | null
   turn: 'White' | 'Black'
   currentTimelineIndex: number
   timeline: MoveTimeline
@@ -126,7 +127,14 @@ export type AppAction =
   | { type: 'ERROR'; message: string; prefill?: { fen?: string; pgn?: string } }
   | { type: 'RESET' }
   | { type: 'COLOR_SELECT_NEEDED' }
-  | { type: 'NAVIGATE_TIMELINE'; index: number }
+  | {
+      type: 'NAVIGATE_TIMELINE'
+      index: number
+      currentFen: string
+      previousFen: string | null
+      turn: 'White' | 'Black'
+      currentAnalysis: PositionAnalysis | null
+    }
   | { type: 'SET_ANALYSIS'; fen: string; analysis: PositionAnalysis }
   | { type: 'SET_ANALYZING_POSITION'; analyzing: boolean }
   | { type: 'TIMELINE_UPDATE'; update: { mode: 'append' | 'truncate_and_append' | 'replace_cursor'; entries: MoveTimelineEntry[]; newCurrentIndex: number } }

@@ -155,7 +155,6 @@ export function BoardPanel({
             position={currentFen}
             onPieceDrop={handlePieceDrop}
             onSquareClick={handleSquareClick}
-            onPieceClick={(_piece, square) => handleSquareClick(square)}
             onSquareRightClick={() => setSelectedSquare(null)}
             boardWidth={boardWidth}
             boardOrientation={playerColor}

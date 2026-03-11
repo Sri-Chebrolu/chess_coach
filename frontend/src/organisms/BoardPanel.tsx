@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
 import type { Square } from 'chess.js'
@@ -31,6 +31,7 @@ export function BoardPanel({
 }: BoardPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [boardWidth, setBoardWidth] = useState(900)
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null)
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -41,24 +42,72 @@ export function BoardPanel({
     return () => observer.disconnect()
   }, [])
 
-  const handlePieceDrop = useCallback(
-    (sourceSquare: string, targetSquare: string): boolean => {
-      if (isSubmittingMove || isWaitingForOpponent) return false
+  // Clear selection when position changes
+  useEffect(() => { setSelectedSquare(null) }, [currentFen])
+
+  // Shared move validation for both drag-and-drop and click-to-move
+  const tryMove = useCallback(
+    (sourceSquare: string, targetSquare: string): string | null => {
+      if (isSubmittingMove || isWaitingForOpponent) return null
 
       const game = new Chess(currentFen)
       let result
       try {
         result = game.move({ from: sourceSquare, to: targetSquare, promotion: 'q' })
       } catch {
-        return false
+        return null
       }
-      if (!result) return false
+      if (!result) return null
 
       onMoveAttempt(result.san, currentFen)
-      return true
+      return result.san
     },
     [currentFen, isSubmittingMove, isWaitingForOpponent, onMoveAttempt],
   )
+
+  const handlePieceDrop = useCallback(
+    (sourceSquare: string, targetSquare: string): boolean => {
+      return tryMove(sourceSquare, targetSquare) !== null
+    },
+    [tryMove],
+  )
+
+  // Legal destinations for selected piece (visual feedback only)
+  const legalMoves = useMemo(() => {
+    if (!selectedSquare) return []
+    const game = new Chess(currentFen)
+    return game.moves({ square: selectedSquare as Square, verbose: true })
+  }, [selectedSquare, currentFen])
+
+  const handleSquareClick = useCallback((square: string) => {
+    if (isSubmittingMove || isWaitingForOpponent) return
+
+    const game = new Chess(currentFen)
+    const piece = game.get(square as Square)
+
+    if (selectedSquare) {
+      // Try to move to clicked square — same validation as drag-and-drop
+      if (tryMove(selectedSquare, square)) {
+        setSelectedSquare(null)
+        return
+      }
+
+      // Clicked another friendly piece → switch selection
+      if (piece && piece.color === game.turn()) {
+        setSelectedSquare(square)
+        return
+      }
+
+      // Invalid target → deselect
+      setSelectedSquare(null)
+      return
+    }
+
+    // Nothing selected → select if friendly piece
+    if (piece && piece.color === game.turn()) {
+      setSelectedSquare(square)
+    }
+  }, [selectedSquare, currentFen, isSubmittingMove, isWaitingForOpponent, tryMove])
 
   // PV arrows: only show when showBestLine is toggled on
   const pvArrows: [Square, Square, string][] = []
@@ -84,6 +133,20 @@ export function BoardPanel({
     }
   }
 
+  // Selected piece + legal move highlights
+  if (selectedSquare) {
+    customSquareStyles[selectedSquare] = {
+      ...customSquareStyles[selectedSquare],
+      boxShadow: 'inset 0 0 0 10px rgba(0, 0, 0, 0.4)',
+    }
+    for (const move of legalMoves) {
+      customSquareStyles[move.to] = {
+        ...customSquareStyles[move.to],
+        background: 'radial-gradient(circle, rgba(0,0,0,0.25) 25%, transparent 25%)',
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-bg-primary overflow-hidden">
       <div ref={containerRef} className="flex flex-row gap-2 p-3 flex-1 min-h-0">
@@ -91,6 +154,8 @@ export function BoardPanel({
           <Chessboard
             position={currentFen}
             onPieceDrop={handlePieceDrop}
+            onSquareClick={handleSquareClick}
+            onSquareRightClick={() => setSelectedSquare(null)}
             boardWidth={boardWidth}
             boardOrientation={playerColor}
             customBoardStyle={{

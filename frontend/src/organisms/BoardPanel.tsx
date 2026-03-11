@@ -137,7 +137,7 @@ export function BoardPanel({
   if (selectedSquare) {
     customSquareStyles[selectedSquare] = {
       ...customSquareStyles[selectedSquare],
-      boxShadow: 'inset 0 0 0 10px rgba(0, 0, 0, 0.4)',
+      boxShadow: 'inset 0 0 0 10px rgba(0, 0, 0, 1)',
     }
     for (const move of legalMoves) {
       customSquareStyles[move.to] = {

@@ -1,6 +1,7 @@
 import uuid
 import logging
 import asyncio
+import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -13,6 +14,7 @@ from typing import Literal
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel
 
@@ -610,3 +612,10 @@ async def chat(req: ChatRequest, request: Request):
         yield {"event": "done", "data": "{}"}
 
     return EventSourceResponse(event_generator())
+
+
+# ─── Static file serving (production) ────────────────────────────────────────
+
+_DIST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend", "dist")
+if os.path.isdir(_DIST_DIR):
+    app.mount("/", StaticFiles(directory=_DIST_DIR, html=True), name="static")

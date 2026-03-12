@@ -9,10 +9,8 @@ import type {
   ApiMoveRequest,
   ApiMoveResponse,
   ApiChatRequest,
-  ApiChatResponse,
   ApiOpponentMoveRequest,
   ApiOpponentMoveResponse,
-  ApiCoachAnalyzeMoveRequest,
 } from './api-types'
 
 export class ApiError extends Error {
@@ -72,10 +70,6 @@ export function apiMove(body: ApiMoveRequest, signal?: AbortSignal) {
   return apiFetch<ApiMoveResponse['data']>('/api/move', body, signal)
 }
 
-export function apiChat(body: ApiChatRequest, signal?: AbortSignal) {
-  return apiFetch<ApiChatResponse['data']>('/api/chat', body, signal)
-}
-
 export function apiOpponentMove(body: ApiOpponentMoveRequest, signal?: AbortSignal) {
   return apiFetch<ApiOpponentMoveResponse['data']>('/api/opponent-move', body, signal)
 }
@@ -91,7 +85,7 @@ export interface CoachStreamCallbacks {
 
 export async function apiStreamCoach(
   url: string,
-  body: ApiCoachAnalyzeMoveRequest,
+  body: ApiChatRequest,
   callbacks: CoachStreamCallbacks,
   signal?: AbortSignal,
 ): Promise<void> {

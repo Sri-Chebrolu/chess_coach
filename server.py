@@ -40,22 +40,6 @@ def format_top_moves(moves: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def enrich_message(user_message: str, fen: str, player_color: Literal["white", "black"]) -> str:
-    board = chess.Board(fen)
-    heuristics = extract_heuristics(board)
-    heuristics_str = format_heuristics_for_prompt(heuristics)
-    student_color = "White" if player_color == "white" else "Black"
-    return (
-        f"=== CURRENT BOARD STATE (Ground Truth) ===\n"
-        f"FEN: {fen}\n"
-        f"Side to move: {'White' if board.turn else 'Black'}\n"
-        f"Student plays: {student_color}\n\n"
-        f"POSITIONAL FEATURES:\n{heuristics_str}\n\n"
-        f"=== STUDENT'S QUESTION ===\n"
-        f"{user_message}"
-    )
-
-
 def serialize_moves(moves: list[dict]) -> list[dict]:
     """Strip chess.Move objects — only keep JSON-serializable fields."""
     return [
@@ -145,9 +129,11 @@ class MoveRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     session_id: str
+    fen_after: str
+    fen_before: str | None = None
     message: str
-    fen: str
     player_color: Literal["white", "black"]
+    side_to_move: Literal["white", "black"]
 
 
 class OpponentMoveRequest(BaseModel):
@@ -156,16 +142,41 @@ class OpponentMoveRequest(BaseModel):
     elo: int = 1500
 
 
-class CoachAnalyzeRequest(BaseModel):
-    session_id: str
-    fen_before: str
-    fen_after: str
-    move_result: dict
-    analysis_before: dict | None = None
-    analysis_after: dict | None = None
-
-
 BEST_MOVE_THRESHOLD = 30  # centipawns
+
+
+def normalize_turn(turn: Literal["white", "black"]) -> bool:
+    return chess.WHITE if turn == "white" else chess.BLACK
+
+
+def validate_side_to_move(board: chess.Board, side_to_move: Literal["white", "black"]) -> None:
+    if board.turn != normalize_turn(side_to_move):
+        raise ValueError("side_to_move does not match fen_after.")
+
+
+def derive_move_between_positions(board_before: chess.Board, board_after: chess.Board) -> chess.Move:
+    matched_moves: list[chess.Move] = []
+    target_fen = board_after.fen()
+    for move in board_before.legal_moves:
+        probe = board_before.copy()
+        probe.push(move)
+        if probe.fen() == target_fen:
+            matched_moves.append(move)
+
+    if len(matched_moves) == 1:
+        return matched_moves[0]
+    if not matched_moves:
+        raise ValueError("fen_before and fen_after are not adjacent legal positions.")
+    raise ValueError("fen_before and fen_after are ambiguous.")
+
+
+def build_chat_audit_metadata(request_id: str, session_id: str, raw_user_message: str, prompt: str) -> dict:
+    return {
+        "request_id": request_id,
+        "session_id": session_id,
+        "raw_user_message": raw_user_message,
+        "enriched_prompt": prompt,
+    }
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -482,80 +493,114 @@ async def opponent_move(req: OpponentMoveRequest, request: Request):
 
 
 @app.post("/api/coach/coach-analyze")
-async def coach_analyze(req: CoachAnalyzeRequest, request: Request):
-    """SSE endpoint for coach commentary on a move."""
+async def coach_analyze_deprecated(request: Request):
     request_id = str(uuid.uuid4())
-    session = get_session(req.session_id)
-    if not session:
-        return err_response("SESSION_NOT_FOUND", "Session expired.", request_id, 404)
-
-    coach = session["coach"]
-    engine = session["engine"]
-    mr = req.move_result
-
-    is_best = mr.get("is_best_move", False)
-
-    async def event_generator():
-        yield {"event": "start", "data": "{}"}
-
-        if is_best:
-            yield {"event": "skip", "data": json_module.dumps({"reason": "best_move"})}
-        else:
-            try:
-                # Get heuristics for context
-                board_before = chess.Board(req.fen_before)
-                board_after = chess.Board(req.fen_after)
-                heuristics_before = format_heuristics_for_prompt(extract_heuristics(board_before))
-                heuristics_after = format_heuristics_for_prompt(extract_heuristics(board_after))
-
-                # If analysis not provided, compute top moves for prompt
-                if req.analysis_before and "top_moves" in req.analysis_before:
-                    top_moves_str = format_top_moves(req.analysis_before["top_moves"])
-                else:
-                    result = engine.analyze_position(board_before, num_moves=3)
-                    top_moves_str = format_top_moves(result["top_moves"])
-
-                for chunk in coach.compare_moves_stream(
-                    fen=req.fen_before,
-                    turn="White" if board_before.turn == chess.WHITE else "Black",
-                    best_move=mr.get("best_move_san", ""),
-                    best_score=mr.get("best_move_eval_white", 0),
-                    user_move=mr.get("move_san", ""),
-                    user_score=mr.get("user_move_eval_white", 0),
-                    delta=mr.get("delta_cp_white", 0),
-                    top_moves_str=top_moves_str,
-                    heuristics_before=heuristics_before,
-                    heuristics_after=heuristics_after,
-                ):
-                    yield {"event": "token", "data": json_module.dumps({"token": chunk})}
-            except Exception as e:
-                logger.error("Coach streaming error: %s", e)
-                yield {"event": "error", "data": json_module.dumps({"message": str(e)})}
-
-        yield {"event": "done", "data": "{}"}
-
-    return EventSourceResponse(event_generator())
+    return err_response(
+        "ENDPOINT_DEPRECATED",
+        "Use POST /api/chat for coach streaming.",
+        request_id,
+        410,
+    )
 
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest, request: Request):
     request_id = str(uuid.uuid4())
 
-    if not req.message.strip():
-        return err_response("EMPTY_MESSAGE", "Message cannot be empty.", request_id)
-
     session = get_session(req.session_id)
     if not session:
         return err_response("SESSION_NOT_FOUND", "Session expired.", request_id, 404)
 
+    coach = session["coach"]
+    engine = session["engine"]
+    user_message = req.message.strip()
+
     try:
-        enriched = enrich_message(req.message, req.fen, req.player_color)
+        board_after = chess.Board(req.fen_after)
+        validate_side_to_move(board_after, req.side_to_move)
+        board_before = chess.Board(req.fen_before) if req.fen_before else None
+    except ValueError as e:
+        return err_response("INVALID_CHAT_CONTEXT", str(e), request_id)
     except Exception as e:
         return err_response("INVALID_FEN", str(e), request_id)
 
-    try:
-        response = session["coach"].followup(enriched)
-    except Exception as e:
-        return err_response("LLM_CONNECTION_ERROR", str(e), request_id)
+    async def event_generator():
+        yield {"event": "start", "data": "{}"}
+        try:
+            if board_before is None:
+                result = engine.analyze_position(board_after, num_moves=3)
+                top_moves_str = format_top_moves(result["top_moves"])
+                heuristics_str = format_heuristics_for_prompt(extract_heuristics(board_after))
+                prompt = coach.build_position_analysis_prompt(
+                    fen=req.fen_after,
+                    turn="White" if board_after.turn == chess.WHITE else "Black",
+                    top_moves_str=top_moves_str,
+                    heuristics_str=heuristics_str,
+                    user_message=user_message,
+                    player_color="White" if req.player_color == "white" else "Black",
+                )
+                audit_metadata = build_chat_audit_metadata(request_id, req.session_id, req.message, prompt)
+                for chunk in coach.analyze_position_stream(
+                    fen=req.fen_after,
+                    turn="White" if board_after.turn == chess.WHITE else "Black",
+                    top_moves_str=top_moves_str,
+                    heuristics_str=heuristics_str,
+                    user_message=user_message,
+                    audit_metadata=audit_metadata,
+                    player_color="White" if req.player_color == "white" else "Black",
+                ):
+                    yield {"event": "token", "data": json_module.dumps({"token": chunk})}
+            else:
+                derived_move = derive_move_between_positions(board_before, board_after)
+                result_before = engine.analyze_position(board_before, num_moves=3)
+                user_move_eval = engine.evaluate_move(board_before, derived_move)
+                best = result_before["top_moves"][0]
+                user_eval_white = user_move_eval["score_cp_white"]
+                best_eval_white = best["score_cp_white"]
+                delta_cp_white = user_eval_white - best_eval_white
+                is_best = abs(delta_cp_white) <= BEST_MOVE_THRESHOLD
 
-    return ok_response({"response": response}, request_id)
+                if is_best and not user_message:
+                    yield {"event": "skip", "data": json_module.dumps({"reason": "best_move"})}
+                else:
+                    heuristics_before = format_heuristics_for_prompt(extract_heuristics(board_before))
+                    heuristics_after = format_heuristics_for_prompt(extract_heuristics(board_after))
+                    top_moves_str = format_top_moves(result_before["top_moves"])
+                    prompt = coach.build_move_comparison_prompt(
+                        fen=req.fen_before,
+                        turn="White" if board_before.turn == chess.WHITE else "Black",
+                        best_move=best["san"],
+                        best_score=best_eval_white,
+                        user_move=board_before.san(derived_move),
+                        user_score=user_eval_white,
+                        delta=delta_cp_white,
+                        top_moves_str=top_moves_str,
+                        heuristics_before=heuristics_before,
+                        heuristics_after=heuristics_after,
+                        user_message=user_message,
+                        player_color="White" if req.player_color == "white" else "Black",
+                    )
+                    audit_metadata = build_chat_audit_metadata(request_id, req.session_id, req.message, prompt)
+                    for chunk in coach.compare_moves_stream(
+                        fen=req.fen_before,
+                        turn="White" if board_before.turn == chess.WHITE else "Black",
+                        best_move=best["san"],
+                        best_score=best_eval_white,
+                        user_move=board_before.san(derived_move),
+                        user_score=user_eval_white,
+                        delta=delta_cp_white,
+                        top_moves_str=top_moves_str,
+                        heuristics_before=heuristics_before,
+                        heuristics_after=heuristics_after,
+                        user_message=user_message,
+                        audit_metadata=audit_metadata,
+                        player_color="White" if req.player_color == "white" else "Black",
+                    ):
+                        yield {"event": "token", "data": json_module.dumps({"token": chunk})}
+        except Exception as e:
+            logger.error("Coach streaming error: %s", e)
+            yield {"event": "error", "data": json_module.dumps({"message": str(e)})}
+
+        yield {"event": "done", "data": "{}"}
+
+    return EventSourceResponse(event_generator())

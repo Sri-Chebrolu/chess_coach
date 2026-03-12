@@ -5,7 +5,7 @@ import {
   analyzeResponse,
   analyzeResponseWithPgn,
   moveResponse,
-  chatResponse,
+  chatStreamResponse,
   pgnNavigateResponse,
   invalidFenError,
 } from './fixtures'
@@ -24,7 +24,7 @@ function setupApiMocks(
     '/api/validate': validateResponse,
     '/api/analyze': analyzeResponse,
     '/api/move': moveResponse,
-    '/api/chat': chatResponse,
+    '/api/chat': chatStreamResponse,
     ...overrides,
   }
   const delayMs = options?.delayMs ?? 0
@@ -54,6 +54,11 @@ function setupApiMocks(
       response = pgnNavigateResponse(moveIndex)
     } else {
       response = { ok: false, error: { code: 'UNKNOWN', message: 'Unknown endpoint' } }
+    }
+
+    if (url.includes('/api/chat')) {
+      await route.fulfill({ status: 200, contentType: 'text/event-stream', body: String(response) })
+      return
     }
 
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) })

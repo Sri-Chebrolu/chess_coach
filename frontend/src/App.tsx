@@ -4,7 +4,7 @@ import { ColorSelectModal } from './organisms/ColorSelectModal'
 import { AnalysisLayout } from './organisms/AnalysisLayout'
 import { BoardPanel } from './organisms/BoardPanel'
 import { CoachPanel } from './organisms/CoachPanel'
-import { apiValidate, apiSessionInit, apiAnalyze, apiMove, apiChat, apiOpponentMove, apiStreamCoach, ApiError } from './api'
+import { apiValidate, apiSessionInit, apiAnalyze, apiMove, apiOpponentMove, apiStreamCoach, ApiError } from './api'
 import { mapPositionAnalysis, mapTimeline, mapTimelineUpdate, mapMoveResult, mapPgnMetadata } from './mappers'
 import type { AppState, AppAction, AnalysisViewState, CoachMessage, MoveTimelineEntry } from './types'
 
@@ -203,6 +203,69 @@ export default function App() {
   } | null>(null)
   const coachAbortRef = useRef<AbortController | null>(null)
 
+  const streamCoachChat = useCallback((
+    body: {
+      session_id: string
+      fen_before: string | null
+      fen_after: string
+      message: string
+      player_color: 'white' | 'black'
+      side_to_move: 'white' | 'black'
+    },
+    options: {
+      onSkip?: () => void
+      onDone?: () => void
+      onError?: () => void
+    } = {},
+  ) => {
+    const coachCtrl = new AbortController()
+    coachAbortRef.current = coachCtrl
+    dispatch({ type: 'SET_COACH_STREAMING', streaming: true })
+    const coachTokens: string[] = []
+
+    return apiStreamCoach(
+      '/api/chat',
+      body,
+      {
+        onToken: (token) => {
+          coachTokens.push(token)
+          dispatch({
+            type: 'STREAM_CHAT',
+            message: {
+              role: 'coach',
+              content: coachTokens.join(''),
+              timestamp: new Date().toISOString(),
+              streaming: true,
+            },
+          })
+        },
+        onSkip: () => {
+          options.onSkip?.()
+          dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
+        },
+        onDone: () => {
+          if (coachTokens.length > 0) {
+            dispatch({
+              type: 'STREAM_CHAT',
+              message: { role: 'coach', content: coachTokens.join(''), timestamp: new Date().toISOString() },
+            })
+          }
+          dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
+          options.onDone?.()
+        },
+        onError: (error) => {
+          dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
+          dispatch({
+            type: 'APPEND_CHAT',
+            message: { role: 'system', content: `Error: ${error.message}`, timestamp: new Date().toISOString() },
+          })
+          options.onError?.()
+        },
+      },
+      coachCtrl.signal,
+    )
+  }, [])
+
   const requestPlayerColor = useCallback((signal: AbortSignal) => {
     dispatch({ type: 'COLOR_SELECT_NEEDED' })
 
@@ -392,52 +455,33 @@ export default function App() {
       dispatch({ type: 'SET_ANALYSIS', fen: d.position_after.fen, analysis: analysisAfter })
 
       // Coach stream for move analysis (non-blocking)
-      const coachCtrl = new AbortController()
-      coachAbortRef.current = coachCtrl
-      dispatch({ type: 'SET_COACH_STREAMING', streaming: true })
-      const coachTokens: string[] = []
-
-      apiStreamCoach(
-        '/api/coach/analyze-move',
+      streamCoachChat(
         {
           session_id: data.session.sessionId,
           fen_before: fenBefore,
           fen_after: d.position_after.fen,
-          move_result: d.move_result,
-          analysis_before: null,
-          analysis_after: d.analysis_after,
+          message: '',
+          player_color: data.session.playerColor,
+          side_to_move: d.position_after.turn.toLowerCase() as 'white' | 'black',
         },
         {
-          onToken: (token) => {
-            coachTokens.push(token)
-            dispatch({ type: 'STREAM_CHAT', message: { role: 'coach', content: coachTokens.join(''), timestamp: new Date().toISOString(), streaming: true } })
-          },
           onSkip: () => {
             dispatch({
               type: 'APPEND_CHAT',
               message: { role: 'coach', content: 'Good move!', timestamp: new Date().toISOString() },
             })
-            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
           },
           onDone: () => {
-            if (coachTokens.length > 0) {
-              dispatch({ type: 'STREAM_CHAT', message: { role: 'coach', content: coachTokens.join(''), timestamp: new Date().toISOString() } })
-            }
-            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
-
-            // Trigger opponent move if applicable
             if (data.session.opponentElo) {
               handleOpponentMove(d.position_after.fen)
             }
           },
           onError: () => {
-            dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
             if (data.session.opponentElo) {
               handleOpponentMove(d.position_after.fen)
             }
           },
         },
-        coachCtrl.signal,
       ).catch(() => {})
     } catch (err) {
       dispatch({ type: 'SET_MOVE_STATUS', status: { isSubmittingMove: false } })
@@ -495,25 +539,21 @@ export default function App() {
     const { data } = state
 
     dispatch({ type: 'APPEND_CHAT', message: { role: 'user', content: text, timestamp: new Date().toISOString() } })
-    dispatch({ type: 'SET_COACH_STREAMING', streaming: true })
 
     try {
-      const res = await apiChat({
+      await streamCoachChat({
         session_id: data.session.sessionId,
-        fen: data.position.currentFen,
+        fen_after: data.position.currentFen,
+        fen_before: data.position.previousFen,
         message: text,
         player_color: data.session.playerColor,
+        side_to_move: data.position.turn.toLowerCase() as 'white' | 'black',
       })
-      if (res.data) {
-        dispatch({ type: 'APPEND_CHAT', message: { role: 'coach', content: res.data.response, timestamp: new Date().toISOString() } })
-      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Connection lost.'
       dispatch({ type: 'APPEND_CHAT', message: { role: 'system', content: `Error: ${message}`, timestamp: new Date().toISOString() } })
-    } finally {
-      dispatch({ type: 'SET_COACH_STREAMING', streaming: false })
     }
-  }, [state])
+  }, [state, streamCoachChat])
 
   if (state.view === 'input') {
     return (

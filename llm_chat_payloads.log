@@ -388,3 +388,219 @@ enriched_prompt:
   what should i here
 ================================================================================
 
+================================================================================
+request_id:       37c669e4-a2c7-44c1-9598-5e8112f7d867
+timestamp:        2026-03-12T21:21:20.576521+00:00
+session_id:       127f276f-b652-40c5-b62f-0605ab839094
+raw_user_message: why was this a good move?
+enriched_prompt:
+  
+  === BOARD ANALYSIS (Ground Truth — do not contradict) ===
+  
+  Move Comparison:
+  FEN: 1k1r1r2/1pp5/p1qp1p1p/3RpQ2/6PP/PP6/2P2P2/2KR4 w - - 1 28
+  Side to move: White
+  Student plays: Black
+  
+  ENGINE'S BEST MOVE: Qc3 (eval: -138 cp)
+  USER'S MOVE: Qc6 (eval: -125 cp)
+  EVAL DIFFERENCE: 13 centipawns
+  
+  ENGINE TOP MOVES:
+    1. Qc3 (-138 cp) — line: Qc3 → Kb1 → Qh3 → h5 → Qh4
+    2. Qc6 (-122 cp) — line: Qc6 → R5d3 → Qd7 → Rg3 → Qe7
+    3. Qe2 (-39 cp) — line: Qe2 → Rg1 → b6 → Kb2 → a5
+  
+  POSITIONAL FEATURES (before move):
+  MATERIAL: White: 25 pts, Black: 26 pts (balance: -1)
+  CENTER: Center control — White: 4/4, Black: 4/4
+  ACTIVITY: Piece activity (squares attacked) — White: 49, Black: 47
+  KING SAFETY (white): castled, not in check, 1 shield pawns, 0 attackers
+  KING SAFETY (black): castled, not in check, 2 shield pawns, 0 attackers
+  PAWN ISSUES (black): isolated pawn on h-file
+  UNDEVELOPED (white): Bc1
+  UNDEVELOPED (black): Nb8, Bf8
+  TACTICS: HANGING: q on c4 is attacked but undefended
+  
+  POSITIONAL FEATURES (after user's move):
+  MATERIAL: White: 25 pts, Black: 26 pts (balance: -1)
+  CENTER: Center control — White: 4/4, Black: 3/4
+  ACTIVITY: Piece activity (squares attacked) — White: 49, Black: 43
+  KING SAFETY (white): castled, not in check, 1 shield pawns, 0 attackers
+  KING SAFETY (black): castled, not in check, 2 shield pawns, 0 attackers
+  PAWN ISSUES (black): isolated pawn on h-file
+  UNDEVELOPED (white): Bc1
+  UNDEVELOPED (black): Nb8, Bf8
+  
+  === TASK ===
+  The student played Qc6 instead of the engine's Qc3.
+  Compare both moves using chess principles. Explain what the student's move
+  gains or loses strategically. Be encouraging but honest.
+  
+  
+  === STUDENT'S QUESTION ===
+  why was this a good move?
+================================================================================
+
+================================================================================
+request_id:       28ab76e6-34c7-4af6-b586-08e79d08a5b3
+timestamp:        2026-03-12T21:22:00.594143+00:00
+session_id:       127f276f-b652-40c5-b62f-0605ab839094
+raw_user_message: I could have put the king in check next move
+enriched_prompt:
+  
+  === BOARD ANALYSIS (Ground Truth — do not contradict) ===
+  
+  Move Comparison:
+  FEN: 1k1r1r2/1pp5/p1qp1p1p/3RpQ2/6PP/PP6/2P2P2/2KR4 w - - 1 28
+  Side to move: White
+  Student plays: Black
+  
+  ENGINE'S BEST MOVE: Qc3 (eval: -130 cp)
+  USER'S MOVE: Qc6 (eval: -128 cp)
+  EVAL DIFFERENCE: 2 centipawns
+  
+  ENGINE TOP MOVES:
+    1. Qc3 (-130 cp) — line: Qc3 → Kb1 → Qh3 → h5 → Qh4
+    2. Qc6 (-118 cp) — line: Qc6 → R5d3 → Qd7 → Rg3 → Qe7
+    3. Qe2 (-37 cp) — line: Qe2 → Rg1 → b6 → Kb2 → Rg8
+  
+  POSITIONAL FEATURES (before move):
+  MATERIAL: White: 25 pts, Black: 26 pts (balance: -1)
+  CENTER: Center control — White: 4/4, Black: 4/4
+  ACTIVITY: Piece activity (squares attacked) — White: 49, Black: 47
+  KING SAFETY (white): castled, not in check, 1 shield pawns, 0 attackers
+  KING SAFETY (black): castled, not in check, 2 shield pawns, 0 attackers
+  PAWN ISSUES (black): isolated pawn on h-file
+  UNDEVELOPED (white): Bc1
+  UNDEVELOPED (black): Nb8, Bf8
+  TACTICS: HANGING: q on c4 is attacked but undefended
+  
+  POSITIONAL FEATURES (after user's move):
+  MATERIAL: White: 25 pts, Black: 26 pts (balance: -1)
+  CENTER: Center control — White: 4/4, Black: 3/4
+  ACTIVITY: Piece activity (squares attacked) — White: 49, Black: 43
+  KING SAFETY (white): castled, not in check, 1 shield pawns, 0 attackers
+  KING SAFETY (black): castled, not in check, 2 shield pawns, 0 attackers
+  PAWN ISSUES (black): isolated pawn on h-file
+  UNDEVELOPED (white): Bc1
+  UNDEVELOPED (black): Nb8, Bf8
+  
+  === TASK ===
+  The student played Qc6 instead of the engine's Qc3.
+  Compare both moves using chess principles. Explain what the student's move
+  gains or loses strategically. Be encouraging but honest.
+  
+  
+  === STUDENT'S QUESTION ===
+  I could have put the king in check next move
+================================================================================
+
+================================================================================
+request_id:       79873f69-e0ce-47c6-b41e-5ab921cae36b
+timestamp:        2026-03-12T21:22:43.541687+00:00
+session_id:       127f276f-b652-40c5-b62f-0605ab839094
+raw_user_message: no i mean from c3, i could have moved to a1, putting white king in check
+enriched_prompt:
+  
+  === BOARD ANALYSIS (Ground Truth — do not contradict) ===
+  
+  Move Comparison:
+  FEN: 1k1r1r2/1pp5/p1qp1p1p/3RpQ2/6PP/PP6/2P2P2/2KR4 w - - 1 28
+  Side to move: White
+  Student plays: Black
+  
+  ENGINE'S BEST MOVE: Qc3 (eval: -139 cp)
+  USER'S MOVE: Qc6 (eval: -122 cp)
+  EVAL DIFFERENCE: 17 centipawns
+  
+  ENGINE TOP MOVES:
+    1. Qc3 (-139 cp) — line: Qc3 → Kb1 → Qh3 → h5 → Qh4
+    2. Qc6 (-127 cp) — line: Qc6 → R5d3
+    3. Qe2 (-51 cp) — line: Qe2 → Rg1 → Rh8 → a4 → a5
+  
+  POSITIONAL FEATURES (before move):
+  MATERIAL: White: 25 pts, Black: 26 pts (balance: -1)
+  CENTER: Center control — White: 4/4, Black: 4/4
+  ACTIVITY: Piece activity (squares attacked) — White: 49, Black: 47
+  KING SAFETY (white): castled, not in check, 1 shield pawns, 0 attackers
+  KING SAFETY (black): castled, not in check, 2 shield pawns, 0 attackers
+  PAWN ISSUES (black): isolated pawn on h-file
+  UNDEVELOPED (white): Bc1
+  UNDEVELOPED (black): Nb8, Bf8
+  TACTICS: HANGING: q on c4 is attacked but undefended
+  
+  POSITIONAL FEATURES (after user's move):
+  MATERIAL: White: 25 pts, Black: 26 pts (balance: -1)
+  CENTER: Center control — White: 4/4, Black: 3/4
+  ACTIVITY: Piece activity (squares attacked) — White: 49, Black: 43
+  KING SAFETY (white): castled, not in check, 1 shield pawns, 0 attackers
+  KING SAFETY (black): castled, not in check, 2 shield pawns, 0 attackers
+  PAWN ISSUES (black): isolated pawn on h-file
+  UNDEVELOPED (white): Bc1
+  UNDEVELOPED (black): Nb8, Bf8
+  
+  === TASK ===
+  The student played Qc6 instead of the engine's Qc3.
+  Compare both moves using chess principles. Explain what the student's move
+  gains or loses strategically. Be encouraging but honest.
+  
+  
+  === STUDENT'S QUESTION ===
+  no i mean from c3, i could have moved to a1, putting white king in check
+================================================================================
+
+================================================================================
+request_id:       207196c4-be18-4e52-bc6b-a91f6b374bd5
+timestamp:        2026-03-12T21:26:27.766564+00:00
+session_id:       127f276f-b652-40c5-b62f-0605ab839094
+raw_user_message: there is no pawn on b2. how would the pawn on a3 block my queen from going from c3 to a1?
+enriched_prompt:
+  
+  === BOARD ANALYSIS (Ground Truth — do not contradict) ===
+  
+  Move Comparison:
+  FEN: 1k1r1r2/1pp5/p1qp1p1p/3RpQ2/6PP/PP6/2P2P2/2KR4 w - - 1 28
+  Side to move: White
+  Student plays: Black
+  
+  ENGINE'S BEST MOVE: Qc3 (eval: -120 cp)
+  USER'S MOVE: Qc6 (eval: -120 cp)
+  EVAL DIFFERENCE: 0 centipawns
+  
+  ENGINE TOP MOVES:
+    1. Qc3 (-120 cp) — line: Qc3 → Kb1 → Qh3 → h5 → Qh4
+    2. Qc6 (-119 cp) — line: Qc6 → R5d3 → Qd7 → Rg3 → Qe7
+    3. Qe2 (-42 cp) — line: Qe2 → R5d3 → Rh8 → a4 → a5
+  
+  POSITIONAL FEATURES (before move):
+  MATERIAL: White: 25 pts, Black: 26 pts (balance: -1)
+  CENTER: Center control — White: 4/4, Black: 4/4
+  ACTIVITY: Piece activity (squares attacked) — White: 49, Black: 47
+  KING SAFETY (white): castled, not in check, 1 shield pawns, 0 attackers
+  KING SAFETY (black): castled, not in check, 2 shield pawns, 0 attackers
+  PAWN ISSUES (black): isolated pawn on h-file
+  UNDEVELOPED (white): Bc1
+  UNDEVELOPED (black): Nb8, Bf8
+  TACTICS: HANGING: q on c4 is attacked but undefended
+  
+  POSITIONAL FEATURES (after user's move):
+  MATERIAL: White: 25 pts, Black: 26 pts (balance: -1)
+  CENTER: Center control — White: 4/4, Black: 3/4
+  ACTIVITY: Piece activity (squares attacked) — White: 49, Black: 43
+  KING SAFETY (white): castled, not in check, 1 shield pawns, 0 attackers
+  KING SAFETY (black): castled, not in check, 2 shield pawns, 0 attackers
+  PAWN ISSUES (black): isolated pawn on h-file
+  UNDEVELOPED (white): Bc1
+  UNDEVELOPED (black): Nb8, Bf8
+  
+  === TASK ===
+  The student played Qc6 instead of the engine's Qc3.
+  Compare both moves using chess principles. Explain what the student's move
+  gains or loses strategically. Be encouraging but honest.
+  
+  
+  === STUDENT'S QUESTION ===
+  there is no pawn on b2. how would the pawn on a3 block my queen from going from c3 to a1?
+================================================================================
+

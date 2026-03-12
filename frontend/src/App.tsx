@@ -8,6 +8,16 @@ import { apiValidate, apiSessionInit, apiAnalyze, apiMove, apiOpponentMove, apiS
 import { mapPositionAnalysis, mapTimeline, mapTimelineUpdate, mapMoveResult, mapPgnMetadata } from './mappers'
 import type { AppState, AppAction, AnalysisViewState, CoachMessage, MoveTimelineEntry } from './types'
 
+function getChatAnalysisModeForEntry(
+  entry: MoveTimelineEntry | null,
+  index: number,
+  playerColor: 'white' | 'black',
+): 'position' | 'move_comparison' {
+  if (!entry || index === 0 || entry.source === 'opponent_play') return 'position'
+  const moveCompleteColor = entry.turn === 'Black' ? 'white' : 'black'
+  return moveCompleteColor === playerColor ? 'move_comparison' : 'position'
+}
+
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
 function reducer(state: AppState, action: AppAction): AppState {
@@ -48,6 +58,7 @@ function reducer(state: AppState, action: AppAction): AppState {
             ...state.data.position,
             currentFen: action.currentFen,
             previousFen: action.previousFen,
+            chatAnalysisMode: action.chatAnalysisMode,
             turn: action.turn,
             currentTimelineIndex: action.index,
             timeline: { ...state.data.position.timeline, currentIndex: action.index },
@@ -115,6 +126,8 @@ function reducer(state: AppState, action: AppAction): AppState {
           position: {
             ...state.data.position,
             currentFen: action.positionAfter.fen,
+            previousFen: action.positionAfter.previousFen,
+            chatAnalysisMode: action.positionAfter.chatAnalysisMode,
             turn: action.positionAfter.turn,
             currentTimelineIndex: action.positionAfter.timelineIndex,
           },
@@ -206,6 +219,7 @@ export default function App() {
   const streamCoachChat = useCallback((
     body: {
       session_id: string
+      analysis_mode: 'position' | 'move_comparison'
       fen_before: string | null
       fen_after: string
       message: string
@@ -348,6 +362,7 @@ export default function App() {
           initialFen: sData.initial_position.fen,
           currentFen: aData.position.fen,
           previousFen: null,
+          chatAnalysisMode: 'position',
           turn: aData.position.turn,
           currentTimelineIndex: timeline.currentIndex,
           timeline,
@@ -390,12 +405,14 @@ export default function App() {
     if (!entry) return
     const previousFen = index > 0 ? data.position.timeline.entries[index - 1]?.fen ?? null : null
     const currentAnalysis = data.analysis.analysisByFen[entry.fen] ?? null
+    const chatAnalysisMode = getChatAnalysisModeForEntry(entry, index, data.session.playerColor)
 
     dispatch({
       type: 'NAVIGATE_TIMELINE',
       index,
       currentFen: entry.fen,
       previousFen,
+      chatAnalysisMode,
       turn: entry.turn,
       currentAnalysis,
     })
@@ -448,7 +465,13 @@ export default function App() {
 
       dispatch({
         type: 'MOVE_EXECUTED',
-        positionAfter: { fen: d.position_after.fen, turn: d.position_after.turn, timelineIndex: timelineUpdate.newCurrentIndex },
+        positionAfter: {
+          fen: d.position_after.fen,
+          previousFen: fenBefore,
+          turn: d.position_after.turn,
+          timelineIndex: timelineUpdate.newCurrentIndex,
+          chatAnalysisMode: 'move_comparison',
+        },
         moveResult,
       })
       dispatch({ type: 'TIMELINE_UPDATE', update: timelineUpdate })
@@ -458,6 +481,7 @@ export default function App() {
       streamCoachChat(
         {
           session_id: data.session.sessionId,
+          analysis_mode: 'move_comparison',
           fen_before: fenBefore,
           fen_after: d.position_after.fen,
           message: '',
@@ -516,7 +540,13 @@ export default function App() {
         dispatch({ type: 'SET_ANALYSIS', fen: d.position_after.fen, analysis: analysisAfter })
         dispatch({
           type: 'MOVE_EXECUTED',
-          positionAfter: { fen: d.position_after.fen, turn: d.position_after.turn, timelineIndex: timelineUpdate.newCurrentIndex },
+          positionAfter: {
+            fen: d.position_after.fen,
+            previousFen: fen,
+            turn: d.position_after.turn,
+            timelineIndex: timelineUpdate.newCurrentIndex,
+            chatAnalysisMode: 'position',
+          },
           moveResult: oppResult,
         })
         dispatch({
@@ -544,7 +574,8 @@ export default function App() {
       await streamCoachChat({
         session_id: data.session.sessionId,
         fen_after: data.position.currentFen,
-        fen_before: data.position.previousFen,
+        fen_before: data.position.chatAnalysisMode === 'move_comparison' ? data.position.previousFen : null,
+        analysis_mode: data.position.chatAnalysisMode,
         message: text,
         player_color: data.session.playerColor,
         side_to_move: data.position.turn.toLowerCase() as 'white' | 'black',

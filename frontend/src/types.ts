@@ -73,6 +73,7 @@ export interface PositionState {
   initialFen: string
   currentFen: string
   previousFen: string | null
+  chatAnalysisMode: 'position' | 'move_comparison'
   turn: 'White' | 'Black'
   currentTimelineIndex: number
   timeline: MoveTimeline
@@ -132,13 +133,24 @@ export type AppAction =
       index: number
       currentFen: string
       previousFen: string | null
+      chatAnalysisMode: 'position' | 'move_comparison'
       turn: 'White' | 'Black'
       currentAnalysis: PositionAnalysis | null
     }
   | { type: 'SET_ANALYSIS'; fen: string; analysis: PositionAnalysis }
   | { type: 'SET_ANALYZING_POSITION'; analyzing: boolean }
   | { type: 'TIMELINE_UPDATE'; update: { mode: 'append' | 'truncate_and_append' | 'replace_cursor'; entries: MoveTimelineEntry[]; newCurrentIndex: number } }
-  | { type: 'MOVE_EXECUTED'; positionAfter: { fen: string; turn: 'White' | 'Black'; timelineIndex: number }; moveResult: MoveExecutionResult }
+  | {
+      type: 'MOVE_EXECUTED'
+      positionAfter: {
+        fen: string
+        previousFen: string | null
+        turn: 'White' | 'Black'
+        timelineIndex: number
+        chatAnalysisMode: 'position' | 'move_comparison'
+      }
+      moveResult: MoveExecutionResult
+    }
   | { type: 'SET_RIGHT_RAIL_TAB'; tab: 'coach' | 'moves' }
   | { type: 'TOGGLE_BEST_LINE' }
   | { type: 'TOGGLE_BEST_MOVE_SOURCE' }

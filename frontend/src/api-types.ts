@@ -130,6 +130,7 @@ export interface ApiMoveResponse {
 
 export interface ApiChatRequest {
   session_id: string
+  analysis_mode: 'position' | 'move_comparison'
   fen_after: string
   fen_before: string | null
   message: string

@@ -129,6 +129,7 @@ class MoveRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     session_id: str
+    analysis_mode: Literal["position", "move_comparison"]
     fen_after: str
     fen_before: str | None = None
     message: str
@@ -524,10 +525,13 @@ async def chat(req: ChatRequest, request: Request):
     except Exception as e:
         return err_response("INVALID_FEN", str(e), request_id)
 
+    if req.analysis_mode == "move_comparison" and board_before is None:
+        return err_response("INVALID_CHAT_CONTEXT", "fen_before is required for move_comparison.", request_id)
+
     async def event_generator():
         yield {"event": "start", "data": "{}"}
         try:
-            if board_before is None:
+            if req.analysis_mode == "position":
                 result = engine.analyze_position(board_after, num_moves=3)
                 top_moves_str = format_top_moves(result["top_moves"])
                 heuristics_str = format_heuristics_for_prompt(extract_heuristics(board_after))
@@ -551,6 +555,8 @@ async def chat(req: ChatRequest, request: Request):
                 ):
                     yield {"event": "token", "data": json_module.dumps({"token": chunk})}
             else:
+                if board_before is None:
+                    raise ValueError("fen_before is required for move_comparison.")
                 derived_move = derive_move_between_positions(board_before, board_after)
                 result_before = engine.analyze_position(board_before, num_moves=3)
                 user_move_eval = engine.evaluate_move(board_before, derived_move)

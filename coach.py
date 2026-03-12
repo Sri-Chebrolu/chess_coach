@@ -32,21 +32,14 @@ POSITION_ANALYSIS_TEMPLATE = f"""
 
 Position Analysis:
 FEN: {{fen}}
-Last to move: {{last_to_move}}
 Side to move: {{turn}}
 Student plays: {{player_color}}
-
-ENGINE'S BEST MOVE: {{best_move}} (eval: {{best_score}} cp)
-EVAL DIFFERENCE: {{delta}} centipawns
 
 ENGINE TOP MOVES:
 {{top_moves}}
 
-POSITIONAL FEATURES (before move):
-{{heuristics_before}}
-
-POSITIONAL FEATURES (after user's move):
-{{heuristics_after}}
+POSITIONAL FEATURES:
+{{heuristics}}
 
 === TASK ===
 Evaluate the user's position using chess principles. Explain what the user's position is doing well and what it is doing poorly. 
@@ -187,11 +180,11 @@ class Coach:
     def build_position_analysis_prompt(self, *, fen: str, turn: str,
                                        top_moves_str: str, heuristics_str: str,
                                        user_message: str | None = None,
-                                       player_color: str) -> str:
+                                       player_color: str | None = None) -> str:
         prompt = POSITION_ANALYSIS_TEMPLATE.format(
             fen=fen,
             turn=turn,
-            player_color=player_color,
+            player_color=player_color or "Unknown",
             top_moves=top_moves_str,
             heuristics=heuristics_str,
         )
@@ -204,11 +197,11 @@ class Coach:
                                      heuristics_before: str,
                                      heuristics_after: str,
                                      user_message: str | None = None,
-                                     player_color: str) -> str:
+                                     player_color: str | None = None) -> str:
         prompt = MOVE_COMPARISON_TEMPLATE.format(
             fen=fen,
             turn=turn_after,
-            player_color=player_color,
+            player_color=player_color or "Unknown",
             best_move=best_move,
             best_score=best_score,
             user_move=user_move,

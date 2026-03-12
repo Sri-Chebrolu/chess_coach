@@ -387,12 +387,56 @@ export default function App() {
         },
         moveStatus: {
           isSubmittingMove: false,
-          isWaitingForOpponent: false,
+          isWaitingForOpponent: opponentElo !== null && playerColor !== vData.turn.toLowerCase(),
           lastMoveResult: null,
         },
       }
 
       dispatch({ type: 'ANALYSIS_READY', data: viewState })
+
+      // If the opponent goes first (e.g. player picks Black at starting position),
+      // trigger their first move inline — handleOpponentMove can't be used here
+      // because it reads from `state`, which hasn't updated to 'analysis' yet.
+      if (opponentElo !== null && playerColor !== vData.turn.toLowerCase()) {
+        try {
+          const oppRes = await apiOpponentMove({
+            session_id: sData.session_id,
+            fen: sData.initial_position.fen,
+            elo: opponentElo,
+          })
+          if (oppRes.data) {
+            const d = oppRes.data
+            const timelineUpdate = mapTimelineUpdate(d.timeline_update)
+            const analysisAfter = mapPositionAnalysis(d.analysis_after)
+            const oppResult = mapMoveResult(d.opponent_move)
+
+            dispatch({ type: 'TIMELINE_UPDATE', update: timelineUpdate })
+            dispatch({ type: 'SET_ANALYSIS', fen: d.position_after.fen, analysis: analysisAfter })
+            dispatch({
+              type: 'MOVE_EXECUTED',
+              positionAfter: {
+                fen: d.position_after.fen,
+                previousFen: sData.initial_position.fen,
+                turn: d.position_after.turn,
+                timelineIndex: timelineUpdate.newCurrentIndex,
+                chatAnalysisMode: 'position',
+              },
+              moveResult: oppResult,
+            })
+            dispatch({
+              type: 'APPEND_CHAT',
+              message: { role: 'system', content: `Opponent played ${oppResult.moveSan}`, timestamp: new Date().toISOString() },
+            })
+          }
+        } catch {
+          dispatch({
+            type: 'APPEND_CHAT',
+            message: { role: 'system', content: 'Opponent move failed. Try making another move.', timestamp: new Date().toISOString() },
+          })
+        } finally {
+          dispatch({ type: 'SET_MOVE_STATUS', status: { isWaitingForOpponent: false } })
+        }
+      }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return
       const message = err instanceof ApiError ? err.message : 'Connection failed. Is the backend running?'

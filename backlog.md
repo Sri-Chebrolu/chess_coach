@@ -11,6 +11,7 @@
 
 # Opponent play
 - [x] 1. If a FEN string is provided, a computer with a user-specified ELO rating should move the Opponent's pieces.
+- [ ] 2. In FEN mode, after the opponent plays a move, a subsequent user question should take the `/api/chat` position-analysis path. Do not send the prior player move as `fen_before` in this case; trigger the `POSITION_ANALYSIS` flow for the current board instead of move comparison.
 
 # Coach responses
 - [x] 1. **Response length** — coach replies are too long; need a much shorter, punchier style (2-4 sentences max).

@@ -26,24 +26,38 @@ RULES:
 - Ground advice in chess principles: center control, development, king safety, pawn structure, tactics.
 - When answering follow-up questions, stay concise (2-4 sentences) and Socratic."""
 
+# meant to be used when the user asks a question about the position
 POSITION_ANALYSIS_TEMPLATE = f"""
 === BOARD ANALYSIS (Ground Truth — do not contradict) ===
+
+Position Analysis:
 FEN: {{fen}}
+Last to move: {{last_to_move}}
 Side to move: {{turn}}
 Student plays: {{player_color}}
+
+ENGINE'S BEST MOVE: {{best_move}} (eval: {{best_score}} cp)
+EVAL DIFFERENCE: {{delta}} centipawns
 
 ENGINE TOP MOVES:
 {{top_moves}}
 
-POSITIONAL FEATURES:
-{{heuristics}}
+POSITIONAL FEATURES (before move):
+{{heuristics_before}}
+
+POSITIONAL FEATURES (after user's move):
+{{heuristics_after}}
 
 === TASK ===
-Analyze this position. Explain the key strategic themes and why the engine's top move is strong.
+Evaluate the user's position using chess principles. Explain what the user's position is doing well and what it is doing poorly. 
+Identify key strategic themes, the best moves, and ask questions to guide the student's understanding of the position.
 """
 
+# meant to be used when the user plays a move and we are comparing it to the best move
 MOVE_COMPARISON_TEMPLATE = f"""
 === BOARD ANALYSIS (Ground Truth — do not contradict) ===
+
+Move Comparison:
 FEN: {{fen}}
 Side to move: {{turn}}
 Student plays: {{player_color}}

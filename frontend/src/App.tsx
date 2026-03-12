@@ -1,4 +1,4 @@
-import { useReducer, useCallback, useRef } from 'react'
+import { useReducer, useCallback, useRef, useEffect } from 'react'
 import { InputPanel } from './organisms/InputPanel'
 import { ColorSelectModal } from './organisms/ColorSelectModal'
 import { AnalysisLayout } from './organisms/AnalysisLayout'
@@ -587,6 +587,16 @@ export default function App() {
       dispatch({ type: 'APPEND_CHAT', message: { role: 'system', content: `Error: ${message}`, timestamp: new Date().toISOString() } })
     }
   }, [state, streamCoachChat])
+
+  // Trigger computer's first move when player picks black
+  useEffect(() => {
+    if (state.view !== 'analysis') return
+    const { data } = state
+    if (!data.session.opponentElo) return
+    if (data.position.currentTimelineIndex !== 0) return
+    if (data.position.turn.toLowerCase() === data.session.playerColor) return
+    handleOpponentMove(data.position.currentFen)
+  }, [state.view]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (state.view === 'input') {
     return (

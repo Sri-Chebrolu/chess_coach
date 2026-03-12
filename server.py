@@ -567,8 +567,8 @@ async def chat(req: ChatRequest, request: Request):
                     heuristics_after = format_heuristics_for_prompt(extract_heuristics(board_after))
                     top_moves_str = format_top_moves(result_before["top_moves"])
                     prompt = coach.build_move_comparison_prompt(
-                        fen=req.fen_before,
-                        turn="White" if board_before.turn == chess.WHITE else "Black",
+                        fen=req.fen_after,
+                        turn_after="White" if board_after.turn == chess.WHITE else "Black",
                         best_move=best["san"],
                         best_score=best_eval_white,
                         user_move=board_before.san(derived_move),
@@ -582,8 +582,8 @@ async def chat(req: ChatRequest, request: Request):
                     )
                     audit_metadata = build_chat_audit_metadata(request_id, req.session_id, req.message, prompt)
                     for chunk in coach.compare_moves_stream(
-                        fen=req.fen_before,
-                        turn="White" if board_before.turn == chess.WHITE else "Black",
+                        fen=req.fen_after,
+                        turn_after="White" if board_after.turn == chess.WHITE else "Black",
                         best_move=best["san"],
                         best_score=best_eval_white,
                         user_move=board_before.san(derived_move),

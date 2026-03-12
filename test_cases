@@ -37,6 +37,48 @@ O-O 9. Qxb7 Rab8 10. Qa6 Rb6 11. Qa4 Rxb2 12. Nb3 Rb1+ 13. Rxb1 Bxb1 14. Nbd2
 Bf5 15. Ne5 Bxe5 16. dxe5 Ne4 17. Nxe4 Bxe4 18. Bb5 Bxg2 19. Rg1 Bf3 20. Bxc6
 Qe7 21. Bh4 Qxh4 22. Qxh4 d4 23. Qg3 Bxc6 24. Qxg7# 1-0
 
+test case #2
+regression: navigating to the first half-move of move 27 must land after `27. b3`, not on the pre-move position
+
+expected behavior
+- timeline selection target: move 27, first half-move
+- half-move index: 53
+- selected SAN: b3
+- selected position must be the board after White's 27th move
+- side to move must be Black
+
+incorrect before fix
+1k1r1r2/1pp5/p2p1p1p/3RpQ2/2q3PP/P7/1PP2P2/2KR4 w - - 2 27
+
+correct now
+1k1r1r2/1pp5/p2p1p1p/3RpQ2/2q3PP/PP6/2P2P2/2KR4 b - - 0 27
+
+PGN
+[Event "Live Chess"]
+[Site "Chess.com"]
+[Date "2026.02.24"]
+[Round "?"]
+[White "rfendich10"]
+[Black "sri8281"]
+[Result "1-0"]
+[TimeControl "600"]
+[WhiteElo "892"]
+[BlackElo "853"]
+[Termination "rfendich10 won by resignation"]
+[ECO "C26"]
+[EndTime "22:55:47 GMT+0000"]
+[Link "https://www.chess.com/game/live/165164534738?move=53"]
+
+1. e4 e5 2. Bc4 Nf6 3. Nc3 Bc5 4. d3 Nc6 5. Bg5 d6 6. Nf3 Bd7 7. a3 Qe7 8. Qd2
+O-O-O 9. O-O-O h6 10. Be3 Bxe3 11. Qxe3 Ng4 12. Qe2 f5 13. exf5 Bxf5 14. Nd5 Qd7
+15. h3 Nf6 16. g4 Be6 17. Nxf6 gxf6 18. Bb5 a6 19. Bc4 Bxc4 20. dxc4 Rhe8 21. h4
+Nd4 22. Qd3 Nxf3 23. Qxf3 Rf8 24. Rd5 Qc6 25. Rhd1 Qxc4 26. Qf5+ Kb8 27. b3 Qf4+
+28. Qxf4 exf4 29. g5 fxg5 30. hxg5 hxg5 31. Rxg5 Rde8 32. Rd2 Re7 33. Kb2 Rfe8
+34. Rf5 Re4 35. f3 Re3 36. Rxf4 R8e5 37. Rf8+ Ka7 38. Rf4 a5 39. Rf2 a4 40.
+Rxa4+ Kb6 41. f4 Rf5 42. Rb4+ Kc5 43. Rc4+ Kd5 44. Rb4 Kc6 45. a4 b6 46. Rc4+
+Kb7 47. b4 Rh5 48. f5 Rhh3 49. f6 Re8 50. f7 Rf8 51. Re4 c5 52. Re8 c4 53. Rxf8
+c3+ 54. Kb3 d5 55. Rg8 1-0
+
 game start
 [Event "Live Chess"]
 [Site "Chess.com"]
@@ -70,4 +112,3 @@ game start
 O-O 9. Qxb7 Rab8 10. Qa6 Rb6 11. Qa4 Rxb2 12. Nb3 Rb1+ 13. Rxb1 Bxb1 14. Nbd2
 Bf5 15. Ne5 Bxe5 16. dxe5 Ne4 17. Nxe4 Bxe4 18. Bb5 Bxg2 19. Rg1 Bf3 20. Bxc6
 Qe7 21. Bh4 Qxh4 22. Qxh4 d4 23. Qg3 Bxc6 24. Qxg7# 1-0
-

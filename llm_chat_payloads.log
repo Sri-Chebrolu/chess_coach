@@ -1,0 +1,36 @@
+================================================================================
+request_id:       df9e621a-44d8-4e16-9899-8cec47d98913
+timestamp:        2026-03-12T17:17:31.737169+00:00
+session_id:       b69ba61d-c0ec-41e9-97b8-9a9f383576da
+raw_user_message: what is the current FEN
+enriched_prompt:
+  
+  === BOARD ANALYSIS (Ground Truth — do not contradict) ===
+  FEN: 1k1r1r2/1pp5/p2p1p1p/3RpQ2/2q3PP/PP6/2P2P2/2KR4 b - - 0 27
+  Side to move: Black
+  
+  ENGINE TOP MOVES:
+    1. Qc6 (-132 cp) — line: Qc6 → R5d3 → Qd7 → Rg3 → Qe7
+    2. Qc3 (-116 cp) — line: Qc3 → Kb1
+    3. Qe2 (-41 cp) — line: Qe2 → Rg1 → Rh8 → a4 → a5
+  
+  POSITIONAL FEATURES:
+  MATERIAL: White: 25 pts, Black: 26 pts (balance: -1)
+  CENTER: Center control — White: 4/4, Black: 4/4
+  ACTIVITY: Piece activity (squares attacked) — White: 49, Black: 47
+  KING SAFETY (white): castled, not in check, 1 shield pawns, 0 attackers
+  KING SAFETY (black): castled, not in check, 2 shield pawns, 0 attackers
+  PAWN ISSUES (black): isolated pawn on h-file
+  UNDEVELOPED (white): Bc1
+  UNDEVELOPED (black): Nb8, Bf8
+  TACTICS: HANGING: q on c4 is attacked but undefended
+  
+  === TASK ===
+  Analyze this position. Explain the key strategic themes and why the engine's top move is strong.
+  
+  Student plays: Black
+  
+  === STUDENT'S QUESTION ===
+  what is the current FEN
+================================================================================
+

@@ -118,8 +118,8 @@ def main():
                 heuristics_after = extract_heuristics(temp_board)
 
                 response = coach.compare_moves(
-                    fen=board_state.board.fen(),
-                    turn=board_state.turn,
+                    fen=temp_board.fen(),
+                    turn_after="White" if temp_board.turn == chess.WHITE else "Black",
                     best_move=best["san"], best_score=best["score_cp_white"],
                     user_move=board_state.board.san(move),
                     user_score=user_eval["score_cp_white"],

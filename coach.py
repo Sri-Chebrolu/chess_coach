@@ -87,13 +87,13 @@ class Coach:
         )
         return self._send(prompt)
 
-    def compare_moves(self, fen, turn, best_move, best_score,
+    def compare_moves(self, fen, turn_after, best_move, best_score,
                       user_move, user_score, delta,
                       top_moves_str, heuristics_before, heuristics_after,
                       user_message: str | None = None, player_color: str | None = None) -> str:
         prompt = self.build_move_comparison_prompt(
             fen=fen,
-            turn=turn,
+            turn_after=turn_after,
             best_move=best_move,
             best_score=best_score,
             user_move=user_move,
@@ -107,7 +107,7 @@ class Coach:
         )
         return self._send(prompt)
 
-    def compare_moves_stream(self, fen, turn, best_move, best_score,
+    def compare_moves_stream(self, fen, turn_after, best_move, best_score,
                              user_move, user_score, delta,
                              top_moves_str, heuristics_before, heuristics_after,
                              user_message: str | None = None, audit_metadata: dict | None = None,
@@ -115,7 +115,7 @@ class Coach:
         """Streaming variant of compare_moves. Yields text chunks."""
         prompt = self.build_move_comparison_prompt(
             fen=fen,
-            turn=turn,
+            turn_after=turn_after,
             best_move=best_move,
             best_score=best_score,
             user_move=user_move,
@@ -182,7 +182,7 @@ class Coach:
             prompt = f"{prompt}\nStudent plays: {player_color}"
         return self._append_user_question(prompt, user_message)
 
-    def build_move_comparison_prompt(self, *, fen: str, turn: str,
+    def build_move_comparison_prompt(self, *, fen: str, turn_after: str,
                                      best_move: str, best_score,
                                      user_move: str, user_score, delta,
                                      top_moves_str: str,
@@ -192,7 +192,7 @@ class Coach:
                                      player_color: str | None = None) -> str:
         prompt = MOVE_COMPARISON_TEMPLATE.format(
             fen=fen,
-            turn=turn,
+            turn=turn_after,
             best_move=best_move,
             best_score=best_score,
             user_move=user_move,

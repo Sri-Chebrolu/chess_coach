@@ -321,8 +321,10 @@ export default function App() {
     try {
       dispatch({ type: 'SET_LOADING_STEP', step: 'validating' })
 
+      const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+      const effectiveFen = fen || (opponentElo !== null ? STARTING_FEN : null)
       const validated = await apiValidate(
-        { fen: fen || null, pgn: pgn || null },
+        { fen: effectiveFen, pgn: pgn || null },
         ctrl.signal,
       )
       const vData = validated.data!

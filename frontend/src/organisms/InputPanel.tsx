@@ -16,8 +16,8 @@ export function InputPanel({ onSubmit, loading = false, error, prefill }: InputP
   const [useOpponent, setUseOpponent] = useState(false)
   const [elo, setElo] = useState(1500)
 
-  const canSubmit = (fen.trim().length > 0 || pgn.trim().length > 0) && !loading
-  const showOpponentOption = fen.trim().length > 0 && pgn.trim().length === 0
+  const canSubmit = (fen.trim().length > 0 || pgn.trim().length > 0 || useOpponent) && !loading
+  const showOpponentOption = pgn.trim().length === 0
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-bg-primary px-4">

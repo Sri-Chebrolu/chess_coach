@@ -78,15 +78,20 @@ export const moveResponse = {
   request_id: 'test-move-id',
 }
 
-export const chatResponse = {
-  ok: true,
-  data: {
-    response: 'That\'s a great question. At this point, castling would improve king safety.',
-    tokens: { input: 500, output: 50 },
-  },
-  error: null,
-  request_id: 'test-chat-id',
-}
+export const chatStreamResponse = [
+  'event: start',
+  'data: {}',
+  '',
+  'event: token',
+  'data: {"token":"That\'s a great question. "}',
+  '',
+  'event: token',
+  'data: {"token":"At this point, castling would improve king safety."}',
+  '',
+  'event: done',
+  'data: {}',
+  '',
+].join('\n')
 
 export const pgnNavigateResponse = (moveIndex: number) => ({
   ok: true,

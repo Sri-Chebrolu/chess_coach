@@ -128,26 +128,13 @@ export interface ApiMoveResponse {
   }
 }
 
-export interface ApiCoachAnalyzeMoveRequest {
-  session_id: string
-  fen_before: string
-  fen_after: string
-  move_result: ApiMoveExecutionResult
-  analysis_before?: ApiPositionAnalysis | null
-  analysis_after?: ApiPositionAnalysis | null
-}
-
 export interface ApiChatRequest {
   session_id: string
-  fen: string
+  fen_after: string
+  fen_before: string | null
   message: string
   player_color: 'white' | 'black'
-}
-
-export interface ApiChatResponse {
-  data: {
-    response: string
-  }
+  side_to_move: 'white' | 'black'
 }
 
 export interface ApiOpponentMoveRequest {

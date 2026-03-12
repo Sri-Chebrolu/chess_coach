@@ -1,4 +1,5 @@
 import logging
+import chess
 from board_state import BoardState
 from engine import EngineAnalysis
 from heuristics import extract_heuristics, format_heuristics_for_prompt
@@ -96,6 +97,7 @@ def main():
                     turn=board_state.turn,
                     top_moves_str=format_top_moves(top_moves),
                     heuristics_str=format_heuristics_for_prompt(heuristics),
+                    player_color=board_state.turn,
                 )
                 print(f"\n{response}\n")
             elif command == "move":
@@ -127,6 +129,7 @@ def main():
                     top_moves_str=format_top_moves(top_moves),
                     heuristics_before=format_heuristics_for_prompt(heuristics_before),
                     heuristics_after=format_heuristics_for_prompt(heuristics_after),
+                    player_color="White" if board_state.board.turn == chess.WHITE else "Black",
                 )
                 print(f"\n{response}\n")
             elif command == "play":

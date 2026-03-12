@@ -26,41 +26,43 @@ RULES:
 - Ground advice in chess principles: center control, development, king safety, pawn structure, tactics.
 - When answering follow-up questions, stay concise (2-4 sentences) and Socratic."""
 
-POSITION_ANALYSIS_TEMPLATE = """
+POSITION_ANALYSIS_TEMPLATE = f"""
 === BOARD ANALYSIS (Ground Truth — do not contradict) ===
-FEN: {fen}
-Side to move: {turn}
+FEN: {{fen}}
+Side to move: {{turn}}
+Student plays: {{player_color}}
 
 ENGINE TOP MOVES:
-{top_moves}
+{{top_moves}}
 
 POSITIONAL FEATURES:
-{heuristics}
+{{heuristics}}
 
 === TASK ===
 Analyze this position. Explain the key strategic themes and why the engine's top move is strong.
 """
 
-MOVE_COMPARISON_TEMPLATE = """
+MOVE_COMPARISON_TEMPLATE = f"""
 === BOARD ANALYSIS (Ground Truth — do not contradict) ===
-FEN: {fen}
-Side to move: {turn}
+FEN: {{fen}}
+Side to move: {{turn}}
+Student plays: {{player_color}}
 
-ENGINE'S BEST MOVE: {best_move} (eval: {best_score} cp)
-USER'S MOVE: {user_move} (eval: {user_score} cp)
-EVAL DIFFERENCE: {delta} centipawns
+ENGINE'S BEST MOVE: {{best_move}} (eval: {{best_score}} cp)
+USER'S MOVE: {{user_move}} (eval: {{user_score}} cp)
+EVAL DIFFERENCE: {{delta}} centipawns
 
 ENGINE TOP MOVES:
-{top_moves}
+{{top_moves}}
 
 POSITIONAL FEATURES (before move):
-{heuristics_before}
+{{heuristics_before}}
 
 POSITIONAL FEATURES (after user's move):
-{heuristics_after}
+{{heuristics_after}}
 
 === TASK ===
-The student played {user_move} instead of the engine's {best_move}.
+The student played {{user_move}} instead of the engine's {{best_move}}.
 Compare both moves using chess principles. Explain what the student's move
 gains or loses strategically. Be encouraging but honest.
 """
@@ -77,13 +79,13 @@ class Coach:
         # self.model = "claude-sonnet-4-5-20250929"
         self.model = "claude-opus-4-6"
 
-    def analyze_position(self, fen, turn, top_moves_str, heuristics_str) -> str:
+    def analyze_position(self, fen, turn, top_moves_str, heuristics_str, player_color: str) -> str:
         prompt = self.build_position_analysis_prompt(
             fen=fen,
             turn=turn,
             top_moves_str=top_moves_str,
             heuristics_str=heuristics_str,
-            player_color=None,
+            player_color=player_color,
         )
         return self._send(prompt)
 
@@ -171,15 +173,14 @@ class Coach:
     def build_position_analysis_prompt(self, *, fen: str, turn: str,
                                        top_moves_str: str, heuristics_str: str,
                                        user_message: str | None = None,
-                                       player_color: str | None = None) -> str:
+                                       player_color: str) -> str:
         prompt = POSITION_ANALYSIS_TEMPLATE.format(
             fen=fen,
             turn=turn,
+            player_color=player_color,
             top_moves=top_moves_str,
             heuristics=heuristics_str,
         )
-        if player_color:
-            prompt = f"{prompt}\nStudent plays: {player_color}"
         return self._append_user_question(prompt, user_message)
 
     def build_move_comparison_prompt(self, *, fen: str, turn_after: str,
@@ -189,10 +190,11 @@ class Coach:
                                      heuristics_before: str,
                                      heuristics_after: str,
                                      user_message: str | None = None,
-                                     player_color: str | None = None) -> str:
+                                     player_color: str) -> str:
         prompt = MOVE_COMPARISON_TEMPLATE.format(
             fen=fen,
             turn=turn_after,
+            player_color=player_color,
             best_move=best_move,
             best_score=best_score,
             user_move=user_move,
@@ -202,8 +204,6 @@ class Coach:
             heuristics_before=heuristics_before,
             heuristics_after=heuristics_after,
         )
-        if player_color:
-            prompt = f"{prompt}\nStudent plays: {player_color}"
         return self._append_user_question(prompt, user_message)
 
     def _send(self, user_message: str, audit_metadata: dict | None = None) -> str:

@@ -3,7 +3,7 @@ import logging
 import anthropic
 from dotenv import load_dotenv
 
-from llm_audit_log import append_chat_audit_entry, AuditLogError
+from llm_audit_log import append_chat_audit_entry
 
 load_dotenv()
 
@@ -213,16 +213,12 @@ class Coach:
         request_payload = self._build_request_payload()
 
         if audit_metadata:
-            try:
-                append_chat_audit_entry(
-                    request_id=audit_metadata["request_id"],
-                    session_id=audit_metadata["session_id"],
-                    raw_user_message=audit_metadata["raw_user_message"],
-                    enriched_prompt=audit_metadata["enriched_prompt"],
-                    llm_request=request_payload,
-                )
-            except AuditLogError as exc:
-                logger.warning("Skipping chat audit log write: %s", exc)
+            append_chat_audit_entry(
+                request_id=audit_metadata["request_id"],
+                session_id=audit_metadata["session_id"],
+                raw_user_message=audit_metadata["raw_user_message"],
+                enriched_prompt=audit_metadata["enriched_prompt"],
+            )
 
         max_retries = 3
         for attempt in range(max_retries):
@@ -268,16 +264,12 @@ class Coach:
         request_payload = self._build_request_payload()
 
         if audit_metadata:
-            try:
-                append_chat_audit_entry(
-                    request_id=audit_metadata["request_id"],
-                    session_id=audit_metadata["session_id"],
-                    raw_user_message=audit_metadata["raw_user_message"],
-                    enriched_prompt=audit_metadata["enriched_prompt"],
-                    llm_request=request_payload,
-                )
-            except AuditLogError as exc:
-                logger.warning("Skipping chat audit log write: %s", exc)
+            append_chat_audit_entry(
+                request_id=audit_metadata["request_id"],
+                session_id=audit_metadata["session_id"],
+                raw_user_message=audit_metadata["raw_user_message"],
+                enriched_prompt=audit_metadata["enriched_prompt"],
+            )
 
         try:
             full_text = []

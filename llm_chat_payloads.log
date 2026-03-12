@@ -349,3 +349,42 @@ enriched_prompt:
   what is the current FEN
 ================================================================================
 
+================================================================================
+request_id:       057a5f84-3095-4bfe-9893-edd9c9d72b4b
+timestamp:        2026-03-12T21:13:24.626540+00:00
+session_id:       127f276f-b652-40c5-b62f-0605ab839094
+raw_user_message: what should i here
+enriched_prompt:
+  
+  === BOARD ANALYSIS (Ground Truth — do not contradict) ===
+  
+  Position Analysis:
+  FEN: 1k1r1r2/1pp5/p2p1p1p/3RpQ2/2q3PP/PP6/2P2P2/2KR4 b - - 0 27
+  Side to move: Black
+  Student plays: Black
+  
+  ENGINE TOP MOVES:
+    1. Qc6 (-123 cp) — line: Qc6 → c4 → Rg8 → h5 → Rdf8
+    2. Qc3 (-112 cp) — line: Qc3 → Kb1 → Qh3 → h5 → Qh4
+    3. Qe2 (-48 cp) — line: Qe2 → Rg1 → b6 → a4 → a5
+  
+  POSITIONAL FEATURES:
+  MATERIAL: White: 25 pts, Black: 26 pts (balance: -1)
+  CENTER: Center control — White: 4/4, Black: 4/4
+  ACTIVITY: Piece activity (squares attacked) — White: 49, Black: 47
+  KING SAFETY (white): castled, not in check, 1 shield pawns, 0 attackers
+  KING SAFETY (black): castled, not in check, 2 shield pawns, 0 attackers
+  PAWN ISSUES (black): isolated pawn on h-file
+  UNDEVELOPED (white): Bc1
+  UNDEVELOPED (black): Nb8, Bf8
+  TACTICS: HANGING: q on c4 is attacked but undefended
+  
+  === TASK ===
+  Evaluate the user's position using chess principles. Explain what the user's position is doing well and what it is doing poorly. 
+  Identify key strategic themes, the best moves, and ask questions to guide the student's understanding of the position.
+  
+  
+  === STUDENT'S QUESTION ===
+  what should i here
+================================================================================
+

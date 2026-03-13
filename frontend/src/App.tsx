@@ -541,7 +541,10 @@ export default function App() {
         fen_before: fenBefore,
         move: san,
       })
-      if (!res.data) return
+      if (!res.data) {
+        dispatch({ type: 'ROLLBACK_MOVE', fen: fenBefore })
+        return
+      }
 
       const d = res.data
       const moveResult = mapMoveResult(d.move_result)

@@ -22,6 +22,7 @@ from board_state import BoardState
 from heuristics import extract_heuristics, format_heuristics_for_prompt
 import sessions as session_store
 from sessions import get_or_create_session, get_session, cleanup_sessions
+from feedback_log import append_feedback_entry
 
 logging.basicConfig(
     filename="chess_coach.log",
@@ -612,6 +613,27 @@ async def chat(req: ChatRequest, request: Request):
         yield {"event": "done", "data": "{}"}
 
     return EventSourceResponse(event_generator())
+
+
+# ─── Feedback ─────────────────────────────────────────────────────────────────
+
+class FeedbackRequest(BaseModel):
+    session_id: str
+    feedback_text: str
+
+
+@app.post("/api/feedback")
+async def feedback(req: FeedbackRequest, request: Request):
+    request_id = str(uuid.uuid4())
+    session = get_session(req.session_id)
+    if not session:
+        return err_response("SESSION_NOT_FOUND", "Session expired.", request_id, 404)
+    append_feedback_entry(
+        request_id=request_id,
+        session_id=req.session_id,
+        feedback_text=req.feedback_text,
+    )
+    return ok_response({"recorded": True}, request_id)
 
 
 # ─── Static file serving (production) ────────────────────────────────────────

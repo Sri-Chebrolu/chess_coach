@@ -20,6 +20,7 @@ interface CoachPanelProps {
   onNavigate: (index: number) => void
   onChatSubmit: (text: string) => void
   onReset: () => void
+  onFeedbackOpen: () => void
 }
 
 export function CoachPanel({
@@ -38,6 +39,7 @@ export function CoachPanel({
   onNavigate,
   onChatSubmit,
   onReset,
+  onFeedbackOpen,
 }: CoachPanelProps) {
   const [input, setInput] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -86,13 +88,22 @@ export function CoachPanel({
         <span className="text-[13px] font-semibold uppercase tracking-widest text-text-secondary font-ui">
           Analysis
         </span>
-        <button
-          data-testid="reset-button"
-          onClick={onReset}
-          className="text-[11px] uppercase tracking-wide text-text-muted hover:text-text-secondary font-ui transition-colors"
-        >
-          New Game
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            data-testid="feedback-button"
+            onClick={onFeedbackOpen}
+            className="text-[11px] uppercase tracking-wide text-text-muted hover:text-text-secondary font-ui transition-colors"
+          >
+            Feedback
+          </button>
+          <button
+            data-testid="reset-button"
+            onClick={onReset}
+            className="text-[11px] uppercase tracking-wide text-text-muted hover:text-text-secondary font-ui transition-colors"
+          >
+            New Game
+          </button>
+        </div>
       </div>
 
       {/* Tab Row */}

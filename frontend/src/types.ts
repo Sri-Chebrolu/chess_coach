@@ -96,6 +96,7 @@ export interface RightRailState {
   activeTab: 'coach' | 'moves'
   showBestLine: boolean
   showBestMoveSource: boolean
+  feedbackModalOpen: boolean
 }
 
 export interface MoveStatusState {
@@ -154,6 +155,8 @@ export type AppAction =
   | { type: 'SET_RIGHT_RAIL_TAB'; tab: 'coach' | 'moves' }
   | { type: 'TOGGLE_BEST_LINE' }
   | { type: 'TOGGLE_BEST_MOVE_SOURCE' }
+  | { type: 'OPEN_FEEDBACK_MODAL' }
+  | { type: 'CLOSE_FEEDBACK_MODAL' }
   | { type: 'APPEND_CHAT'; message: CoachMessage }
   | { type: 'STREAM_CHAT'; message: CoachMessage }
   | { type: 'SET_COACH_STREAMING'; streaming: boolean }

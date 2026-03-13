@@ -1,10 +1,11 @@
 import { useReducer, useCallback, useRef, useEffect } from 'react'
 import { InputPanel } from './organisms/InputPanel'
 import { ColorSelectModal } from './organisms/ColorSelectModal'
+import { FeedbackModal } from './organisms/FeedbackModal'
 import { AnalysisLayout } from './organisms/AnalysisLayout'
 import { BoardPanel } from './organisms/BoardPanel'
 import { CoachPanel } from './organisms/CoachPanel'
-import { apiValidate, apiSessionInit, apiAnalyze, apiMove, apiOpponentMove, apiStreamCoach, ApiError } from './api'
+import { apiValidate, apiSessionInit, apiAnalyze, apiMove, apiOpponentMove, apiStreamCoach, apiFeedback, ApiError } from './api'
 import { mapPositionAnalysis, mapTimeline, mapTimelineUpdate, mapMoveResult, mapPgnMetadata } from './mappers'
 import type { AppState, AppAction, AnalysisViewState, CoachMessage, MoveTimelineEntry } from './types'
 
@@ -151,6 +152,14 @@ function reducer(state: AppState, action: AppAction): AppState {
     case 'TOGGLE_BEST_MOVE_SOURCE':
       if (state.view !== 'analysis') return state
       return { ...state, data: { ...state.data, rightRail: { ...state.data.rightRail, showBestMoveSource: !state.data.rightRail.showBestMoveSource } } }
+
+    case 'OPEN_FEEDBACK_MODAL':
+      if (state.view !== 'analysis') return state
+      return { ...state, data: { ...state.data, rightRail: { ...state.data.rightRail, feedbackModalOpen: true } } }
+
+    case 'CLOSE_FEEDBACK_MODAL':
+      if (state.view !== 'analysis') return state
+      return { ...state, data: { ...state.data, rightRail: { ...state.data.rightRail, feedbackModalOpen: false } } }
 
     case 'APPEND_CHAT':
       if (state.view !== 'analysis') return state
@@ -384,6 +393,7 @@ export default function App() {
           activeTab: 'coach',
           showBestLine: false,
           showBestMoveSource: false,
+          feedbackModalOpen: false,
         },
         moveStatus: {
           isSubmittingMove: false,
@@ -624,6 +634,16 @@ export default function App() {
     }
   }, [state, streamCoachChat])
 
+  const handleFeedbackSubmit = useCallback(async (text: string) => {
+    if (state.view !== 'analysis') return
+    try {
+      await apiFeedback({ session_id: state.data.session.sessionId, feedback_text: text })
+    } catch {
+      // Feedback errors are silent — logging is best-effort
+    }
+    dispatch({ type: 'CLOSE_FEEDBACK_MODAL' })
+  }, [state])
+
   // Trigger computer's first move when player picks black
   useEffect(() => {
     if (state.view !== 'analysis') return
@@ -669,6 +689,13 @@ export default function App() {
   const { data } = state
 
   return (
+    <>
+    {data.rightRail.feedbackModalOpen && (
+      <FeedbackModal
+        onSubmit={handleFeedbackSubmit}
+        onCancel={() => dispatch({ type: 'CLOSE_FEEDBACK_MODAL' })}
+      />
+    )}
     <AnalysisLayout
       boardPanel={
         <BoardPanel
@@ -702,8 +729,10 @@ export default function App() {
           onNavigate={handleNavigate}
           onChatSubmit={handleChatSubmit}
           onReset={() => dispatch({ type: 'RESET' })}
+          onFeedbackOpen={() => dispatch({ type: 'OPEN_FEEDBACK_MODAL' })}
         />
       }
     />
+    </>
   )
 }

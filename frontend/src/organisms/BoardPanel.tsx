@@ -112,7 +112,7 @@ export function BoardPanel({
   // PV arrows: only show when showBestLine is toggled on
   const pvArrows: [Square, Square, string][] = []
   if (showBestLine && topMoves.length > 0 && topMoves[0].fromSquare && topMoves[0].toSquare) {
-    pvArrows.push([topMoves[0].fromSquare as Square, topMoves[0].toSquare as Square, 'rgba(34, 211, 238, 0.6)'])
+    pvArrows.push([topMoves[0].fromSquare as Square, topMoves[0].toSquare as Square, 'rgba(68, 142, 13, 0.7)'])
   }
 
   // Source square highlight: show when showBestMoveSource is toggled on
@@ -148,16 +148,16 @@ export function BoardPanel({
   }
 
   return (
-    <div className="flex flex-col h-full bg-bg-primary overflow-hidden">
+    <div className="flex flex-col h-full bg-bg-surface overflow-hidden">
       <div ref={containerRef} className="flex flex-row gap-2 p-3 flex-1 min-h-0">
         <div
           data-testid="chess-board"
           style={{
             width: boardWidth,
-            borderRadius: '12px',
+            border: '4px solid white',
+            borderRadius: '24px',
             padding: '4px',
-            boxShadow: '8px 8px 16px rgba(0,0,0,0.4), -4px -4px 12px rgba(71,85,105,0.15)',
-            border: '1px solid rgba(71,85,105,0.3)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           }}
         >
           <Chessboard
@@ -168,11 +168,11 @@ export function BoardPanel({
             boardWidth={boardWidth}
             boardOrientation={playerColor}
             customBoardStyle={{
-              border: '1px solid var(--border)',
+              border: '1px solid rgba(212, 208, 200, 0.3)',
               boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
             }}
-            customDarkSquareStyle={{ backgroundColor: '#475569' }}
-            customLightSquareStyle={{ backgroundColor: '#e2e8f0' }}
+            customDarkSquareStyle={{ backgroundColor: '#448e0d' }}
+            customLightSquareStyle={{ backgroundColor: '#f0e6c8' }}
             customArrows={pvArrows}
             customSquareStyles={customSquareStyles}
             animationDuration={200}

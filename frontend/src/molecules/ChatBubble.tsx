@@ -52,7 +52,7 @@ function renderContent(content: string) {
     }
     if (part.startsWith('`') && part.endsWith('`')) {
       return (
-        <code key={i} className="font-mono text-[13px] bg-bg-primary px-1 rounded-sm">
+        <code key={i} className="font-mono text-[13px] bg-bg-primary px-1 rounded-md">
           {part.slice(1, -1)}
         </code>
       )
@@ -93,7 +93,7 @@ export function ChatBubble({ role, content, streaming, index, 'data-testid': tes
     return (
       <div
         data-testid={testId ?? `chat-message-${index}`}
-        className="px-3 py-2 text-[13px] font-mono leading-[1.7] bg-bg-surface border border-warning text-warning"
+        className="px-3 py-2 text-[13px] font-mono leading-[1.7] bg-bg-surface border border-warning text-warning rounded-xl"
       >
         <div className="text-[10px] uppercase tracking-widest text-text-muted font-ui mb-1">
           System
@@ -106,7 +106,7 @@ export function ChatBubble({ role, content, streaming, index, 'data-testid': tes
   return (
     <div
       data-testid={testId ?? `chat-message-${index}`}
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+      className={`flex px-3 py-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       {isCoach && (
         <div className="flex flex-col items-center mr-2 mt-1">
@@ -117,8 +117,8 @@ export function ChatBubble({ role, content, streaming, index, 'data-testid': tes
         className={[
           'px-4 py-3 text-[15px] font-ui leading-[1.7] max-w-[85%]',
           isUser
-            ? 'bg-accent text-white'
-            : 'bg-bg-elevated text-text-primary',
+            ? 'bg-[#3a3a3a] text-white rounded-2xl'
+            : 'bg-bg-elevated text-text-primary rounded-2xl',
         ].join(' ')}
       >
         {isCoach && (

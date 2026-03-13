@@ -12,13 +12,14 @@ export function AnalysisLayout({ boardPanel, coachPanel }: AnalysisLayoutProps) 
       style={{
         display: 'grid',
         gridTemplateColumns: '3fr 2fr',
-        gap: '1px',
+        gap: '16px',
         height: '100vh',
-        background: 'var(--border)',
+        padding: '16px',
+        background: '#0a0a0a',
       }}
     >
-      <div style={{ background: 'var(--bg-primary)', overflow: 'hidden' }}>{boardPanel}</div>
-      <div style={{ background: 'var(--bg-primary)', overflow: 'hidden' }}>{coachPanel}</div>
+      <div style={{ background: 'var(--bg-surface)', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>{boardPanel}</div>
+      <div style={{ background: 'var(--bg-surface)', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>{coachPanel}</div>
     </div>
   )
 }

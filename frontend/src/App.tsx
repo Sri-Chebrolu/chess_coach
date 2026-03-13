@@ -242,13 +242,13 @@ function LoadingView({ step, onCancel }: { step: 'validating' | 'engine' | 'coac
   return (
     <div data-testid="loading-state" className="flex items-center justify-center min-h-screen bg-bg-primary">
       <div className="flex flex-col gap-4 items-start max-w-[560px] w-full px-4">
-        <p data-testid="loading-step" className="font-mono text-[14px] text-text-primary blinking-cursor">
+        <p data-testid="loading-step" className="font-mono text-[14px] text-white blinking-cursor">
           {stepText[step]}
         </p>
         <button
           data-testid="loading-cancel"
           onClick={onCancel}
-          className="text-[12px] text-text-muted hover:text-text-secondary font-ui uppercase tracking-wide transition-colors"
+          className="text-[12px] text-[#999] hover:text-[#ccc] font-ui uppercase tracking-wide transition-colors"
         >
           Cancel
         </button>

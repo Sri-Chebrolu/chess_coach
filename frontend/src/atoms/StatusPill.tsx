@@ -15,7 +15,6 @@ export function StatusPill({ label, variant = 'neutral', 'data-testid': testId }
   return (
     <span
       data-testid={testId}
-      style={{ borderRadius: 0 }}
       className={`inline-flex items-center px-2 py-[2px] text-[11px] uppercase tracking-[0.05em] border font-mono ${variantMap[variant]}`}
     >
       {label}

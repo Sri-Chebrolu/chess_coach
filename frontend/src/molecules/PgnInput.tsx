@@ -19,7 +19,7 @@ export function PgnInput({ value, onChange, onBlur, error, disabled, 'data-testi
         disabled={disabled}
         rows={6}
         placeholder={`[Event "Casual Game"]\n[White "You"]\n[Black "Opponent"]\n\n1. e4 e5 2. Nf3 Nc6...`}
-        style={{ borderRadius: 0, resize: 'vertical' }}
+        style={{ resize: 'vertical' }}
         className={[
           'w-full px-3 py-2 font-mono text-[13px] text-text-primary',
           'bg-bg-surface border',

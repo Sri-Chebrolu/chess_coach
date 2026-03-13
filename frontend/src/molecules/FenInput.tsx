@@ -19,7 +19,7 @@ export function FenInput({ value, onChange, onBlur, error, disabled, 'data-testi
         disabled={disabled}
         rows={2}
         placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-        style={{ borderRadius: 0, resize: 'vertical' }}
+        style={{ resize: 'vertical' }}
         className={[
           'w-full px-3 py-2 font-mono text-[13px] text-text-primary',
           'bg-bg-surface border',

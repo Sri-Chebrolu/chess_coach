@@ -1,8 +1,46 @@
+import { useState, useEffect, useRef } from 'react'
 import type { CoachMessage } from '../types'
 
 interface ChatBubbleProps extends CoachMessage {
   index: number
   'data-testid'?: string
+}
+
+const CHAR_INTERVAL_MS = 16
+const CHARS_PER_TICK = 2
+const CATCHUP_THRESHOLD = 80
+const CATCHUP_CHARS_PER_TICK = 6
+
+function useTypewriter(content: string, active: boolean): string {
+  const [displayLen, setDisplayLen] = useState(active ? 0 : content.length)
+  const contentRef = useRef(content)
+  contentRef.current = content
+
+  useEffect(() => {
+    if (!active) {
+      setDisplayLen(content.length)
+      return
+    }
+
+    const id = setInterval(() => {
+      setDisplayLen((prev) => {
+        const target = contentRef.current.length
+        if (prev >= target) return prev
+        const behind = target - prev
+        const step = behind > CATCHUP_THRESHOLD ? CATCHUP_CHARS_PER_TICK : CHARS_PER_TICK
+        return Math.min(prev + step, target)
+      })
+    }, CHAR_INTERVAL_MS)
+
+    return () => clearInterval(id)
+  }, [active])
+
+  // When streaming ends, snap to full content
+  useEffect(() => {
+    if (!active) setDisplayLen(content.length)
+  }, [active, content.length])
+
+  return content.slice(0, displayLen)
 }
 
 function renderContent(content: string) {
@@ -45,10 +83,11 @@ function CoachAvatar() {
   )
 }
 
-export function ChatBubble({ role, content, index, 'data-testid': testId }: ChatBubbleProps) {
+export function ChatBubble({ role, content, streaming, index, 'data-testid': testId }: ChatBubbleProps) {
   const isCoach = role === 'coach'
   const isUser = role === 'user'
   const isSystem = role === 'system'
+  const displayContent = useTypewriter(content, isCoach && !!streaming)
 
   if (isSystem) {
     return (
@@ -85,7 +124,7 @@ export function ChatBubble({ role, content, index, 'data-testid': testId }: Chat
         {isCoach && (
           <div className="text-[11px] font-medium text-text-secondary mb-1">Coach</div>
         )}
-        <div>{renderContent(content)}</div>
+        <div>{renderContent(displayContent)}</div>
       </div>
     </div>
   )

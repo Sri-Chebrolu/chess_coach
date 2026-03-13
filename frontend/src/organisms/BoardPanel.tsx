@@ -112,7 +112,7 @@ export function BoardPanel({
   // PV arrows: only show when showBestLine is toggled on
   const pvArrows: [Square, Square, string][] = []
   if (showBestLine && topMoves.length > 0 && topMoves[0].fromSquare && topMoves[0].toSquare) {
-    pvArrows.push([topMoves[0].fromSquare as Square, topMoves[0].toSquare as Square, 'rgba(118, 150, 86, 0.6)'])
+    pvArrows.push([topMoves[0].fromSquare as Square, topMoves[0].toSquare as Square, 'rgba(34, 211, 238, 0.6)'])
   }
 
   // Source square highlight: show when showBestMoveSource is toggled on
@@ -150,7 +150,16 @@ export function BoardPanel({
   return (
     <div className="flex flex-col h-full bg-bg-primary overflow-hidden">
       <div ref={containerRef} className="flex flex-row gap-2 p-3 flex-1 min-h-0">
-        <div data-testid="chess-board" style={{ width: boardWidth }}>
+        <div
+          data-testid="chess-board"
+          style={{
+            width: boardWidth,
+            borderRadius: '12px',
+            padding: '4px',
+            boxShadow: '8px 8px 16px rgba(0,0,0,0.4), -4px -4px 12px rgba(71,85,105,0.15)',
+            border: '1px solid rgba(71,85,105,0.3)',
+          }}
+        >
           <Chessboard
             position={currentFen}
             onPieceDrop={handlePieceDrop}
@@ -162,8 +171,8 @@ export function BoardPanel({
               border: '1px solid var(--border)',
               boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
             }}
-            customDarkSquareStyle={{ backgroundColor: '#769656' }}
-            customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
+            customDarkSquareStyle={{ backgroundColor: '#475569' }}
+            customLightSquareStyle={{ backgroundColor: '#e2e8f0' }}
             customArrows={pvArrows}
             customSquareStyles={customSquareStyles}
             animationDuration={200}

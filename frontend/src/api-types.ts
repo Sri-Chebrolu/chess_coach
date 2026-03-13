@@ -157,6 +157,8 @@ export interface ApiOpponentMoveResponse {
 export interface ApiFeedbackRequest {
   session_id: string
   feedback_text: string
+  current_fen: string
+  conversation: Array<{ role: string; content: string; timestamp: string }>
 }
 
 export interface ApiFeedbackResponse {

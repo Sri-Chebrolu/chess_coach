@@ -620,6 +620,8 @@ async def chat(req: ChatRequest, request: Request):
 class FeedbackRequest(BaseModel):
     session_id: str
     feedback_text: str
+    current_fen: str = ""
+    conversation: list[dict] = []
 
 
 @app.post("/api/feedback")
@@ -632,6 +634,8 @@ async def feedback(req: FeedbackRequest, request: Request):
         request_id=request_id,
         session_id=req.session_id,
         feedback_text=req.feedback_text,
+        current_fen=req.current_fen,
+        conversation=req.conversation,
     )
     return ok_response({"recorded": True}, request_id)
 

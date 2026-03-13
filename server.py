@@ -25,7 +25,6 @@ from sessions import get_or_create_session, get_session, cleanup_sessions
 from feedback_log import append_feedback_entry
 
 logging.basicConfig(
-    filename="chess_coach.log",
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )

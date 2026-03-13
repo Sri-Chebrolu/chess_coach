@@ -11,6 +11,8 @@ import type {
   ApiChatRequest,
   ApiOpponentMoveRequest,
   ApiOpponentMoveResponse,
+  ApiFeedbackRequest,
+  ApiFeedbackResponse,
 } from './api-types'
 
 export class ApiError extends Error {
@@ -72,6 +74,10 @@ export function apiMove(body: ApiMoveRequest, signal?: AbortSignal) {
 
 export function apiOpponentMove(body: ApiOpponentMoveRequest, signal?: AbortSignal) {
   return apiFetch<ApiOpponentMoveResponse['data']>('/api/opponent-move', body, signal)
+}
+
+export function apiFeedback(body: ApiFeedbackRequest, signal?: AbortSignal) {
+  return apiFetch<ApiFeedbackResponse['data']>('/api/feedback', body, signal)
 }
 
 // ─── SSE Streaming ───────────────────────────────────────────────────────────

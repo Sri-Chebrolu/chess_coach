@@ -153,3 +153,12 @@ export interface ApiOpponentMoveResponse {
     timeline_update: ApiTimelineUpdate
   }
 }
+
+export interface ApiFeedbackRequest {
+  session_id: string
+  feedback_text: string
+}
+
+export interface ApiFeedbackResponse {
+  data: { recorded: boolean }
+}

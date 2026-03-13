@@ -24,6 +24,10 @@ function chatStream(text: string) {
   ].join('\n')
 }
 
+function cloneRequestBody(body: Record<string, unknown> | undefined) {
+  return JSON.parse(JSON.stringify(body ?? {})) as Record<string, unknown>
+}
+
 function analysisFor(fen: string) {
   const turn = fen.includes(' w ') ? 'White' : 'Black'
   return {
@@ -141,7 +145,7 @@ async function loadOpponentSessionAsWhite(
     }
 
     if (url.includes('/api/chat')) {
-      chatRequests.push((body ?? {}) as Record<string, unknown>)
+      chatRequests.push(cloneRequestBody(body))
       await route.fulfill({ status: 200, contentType: 'text/event-stream', body: chatStream('How does that change the position?') })
       return
     }
@@ -232,7 +236,7 @@ async function loadOpponentSessionAsBlack(
     }
 
     if (url.includes('/api/chat')) {
-      chatRequests.push((body ?? {}) as Record<string, unknown>)
+      chatRequests.push(cloneRequestBody(body))
       await route.fulfill({ status: 200, contentType: 'text/event-stream', body: chatStream('How does that change the position?') })
       return
     }
@@ -279,7 +283,7 @@ test.describe('Scenario A: FEN flow — full multi-step session', () => {
         return
       }
       if (url.includes('/api/chat')) {
-        chatRequests.push((body ?? {}) as Record<string, unknown>)
+        chatRequests.push(cloneRequestBody(body))
         await route.fulfill({ status: 200, contentType: 'text/event-stream', body: chatStream('Knight development, consider the center.') })
         return
       }
@@ -440,11 +444,9 @@ test.describe('Scenario B: Opponent mode — player is White', () => {
     })
 
     // Opponent plays e5 (triggered after chat onDone) — wait for timeline to update
-    await expect.poll(async () => {
-      const chat = page.getByTestId('chat-history')
-      const text = await chat.textContent()
-      return text?.includes('Opponent played e5') ?? false
-    }).toBeTruthy()
+    await page.getByTestId('tab-moves').click()
+    await expect(page.getByRole('button', { name: 'e5' })).toBeVisible()
+    await page.getByTestId('tab-coach').click()
 
     // Chat from Black's position (opponent's move) — must be position mode
     await page.getByTestId('chat-input').fill('How should I respond to e5?')
@@ -496,11 +498,8 @@ test.describe('Scenario C: Opponent mode — player is Black, computer moves fir
 
     await loadOpponentSessionAsBlack(page, chatRequests, [e5Move], [e4Opp, nf3Opp])
 
-    // Computer (White) should move first automatically — wait for their move to complete
-    await expect.poll(async () => {
-      const text = await page.getByTestId('chat-history').textContent()
-      return text?.includes('Opponent played e4') ?? false
-    }, { timeout: 10000 }).toBeTruthy()
+    // Computer (White) should move first automatically — wait for the timeline to advance
+    await expect(page.getByTestId('nav-prev')).toBeEnabled({ timeout: 10000 })
 
     // Chat after opponent's first move — must be position mode (it was opponent's move)
     await page.getByTestId('chat-input').fill('What are my options after e4?')
@@ -528,11 +527,10 @@ test.describe('Scenario C: Opponent mode — player is Black, computer moves fir
       message: '',
     })
 
-    // Opponent (White) responds with Nf3 — wait for chat history to update
-    await expect.poll(async () => {
-      const text = await page.getByTestId('chat-history').textContent()
-      return text?.includes('Opponent played Nf3') ?? false
-    }, { timeout: 10000 }).toBeTruthy()
+    // Opponent (White) responds with Nf3 — wait for timeline to update
+    await page.getByTestId('tab-moves').click()
+    await expect(page.getByRole('button', { name: 'Nf3' })).toBeVisible({ timeout: 10000 })
+    await page.getByTestId('tab-coach').click()
 
     // Chat after Nf3 (opponent's move) — must be position mode again
     await page.getByTestId('chat-input').fill('How should I continue?')
@@ -577,7 +575,7 @@ test.describe('Scenario C: Opponent mode — player is Black, computer moves fir
         return
       }
       if (url.includes('/api/chat')) {
-        chatRequests.push((body ?? {}) as Record<string, unknown>)
+        chatRequests.push(cloneRequestBody(body))
         await route.fulfill({ status: 200, contentType: 'text/event-stream', body: chatStream('Thinking...') })
         return
       }

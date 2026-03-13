@@ -423,10 +423,6 @@ export default function App() {
               },
               moveResult: oppResult,
             })
-            dispatch({
-              type: 'APPEND_CHAT',
-              message: { role: 'system', content: `Opponent played ${oppResult.moveSan}`, timestamp: new Date().toISOString() },
-            })
           }
         } catch {
           dispatch({
@@ -595,10 +591,6 @@ export default function App() {
           },
           moveResult: oppResult,
         })
-        dispatch({
-          type: 'APPEND_CHAT',
-          message: { role: 'system', content: `Opponent played ${oppResult.moveSan}`, timestamp: new Date().toISOString() },
-        })
       }
     } catch {
       dispatch({
@@ -637,6 +629,7 @@ export default function App() {
     if (state.view !== 'analysis') return
     const { data } = state
     if (!data.session.opponentElo) return
+    if (data.moveStatus.isWaitingForOpponent) return
     if (data.position.currentTimelineIndex !== 0) return
     if (data.position.turn.toLowerCase() === data.session.playerColor) return
     handleOpponentMove(data.position.currentFen)

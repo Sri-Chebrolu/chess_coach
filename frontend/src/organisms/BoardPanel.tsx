@@ -148,8 +148,8 @@ export function BoardPanel({
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div ref={containerRef} className="flex flex-row gap-2 p-0 flex-1 min-h-0">
+    <div className="overflow-hidden self-start">
+      <div ref={containerRef} className="flex flex-row gap-2 p-0">
         <div
           data-testid="chess-board"
           style={{
@@ -158,7 +158,7 @@ export function BoardPanel({
             border: '1px solid var(--border)',
             borderRadius: '24px',
             padding: '14px',
-            boxShadow: '0 14px 40px rgba(25, 25, 22, 0.18)',
+            boxShadow: '0 50px 300px rgba(25, 25, 22, 0.18)',
           }}
         >
           <Chessboard
@@ -171,7 +171,7 @@ export function BoardPanel({
             customBoardStyle={{
               borderRadius: '14px',
               border: '1px solid rgba(187, 181, 169, 0.65)',
-              boxShadow: '0 10px 28px rgba(28, 27, 24, 0.14)',
+              boxShadow: '0 10px 300px rgba(28, 27, 24, 0.14)',
             }}
             customDarkSquareStyle={{ backgroundColor: 'var(--board-dark)' }}
             customLightSquareStyle={{ backgroundColor: 'var(--board-light)' }}

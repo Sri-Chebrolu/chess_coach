@@ -161,6 +161,8 @@ export type AppAction =
   | { type: 'STREAM_CHAT'; message: CoachMessage }
   | { type: 'SET_COACH_STREAMING'; streaming: boolean }
   | { type: 'SET_MOVE_STATUS'; status: Partial<MoveStatusState> }
+  | { type: 'OPTIMISTIC_MOVE'; fenBefore: string; fenAfter: string }
+  | { type: 'ROLLBACK_MOVE'; fen: string }
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 

@@ -183,6 +183,48 @@ function reducer(state: AppState, action: AppAction): AppState {
       if (state.view !== 'analysis') return state
       return { ...state, data: { ...state.data, moveStatus: { ...state.data.moveStatus, ...action.status } } }
 
+    case 'OPTIMISTIC_MOVE': {
+      if (state.view !== 'analysis') return state
+      const newTurn = state.data.position.turn === 'White' ? 'Black' : 'White'
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          position: {
+            ...state.data.position,
+            currentFen: action.fenAfter,
+            previousFen: action.fenBefore,
+            turn: newTurn,
+          },
+          moveStatus: {
+            ...state.data.moveStatus,
+            isSubmittingMove: true,
+          },
+        },
+      }
+    }
+
+    case 'ROLLBACK_MOVE': {
+      if (state.view !== 'analysis') return state
+      const rolledBackTurn = state.data.position.turn === 'White' ? 'Black' : 'White'
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          position: {
+            ...state.data.position,
+            currentFen: action.fen,
+            previousFen: null,
+            turn: rolledBackTurn,
+          },
+          moveStatus: {
+            ...state.data.moveStatus,
+            isSubmittingMove: false,
+          },
+        },
+      }
+    }
+
     default:
       return state
   }
@@ -483,11 +525,12 @@ export default function App() {
     }
   }, [state])
 
-  const handleMoveAttempt = useCallback(async (san: string, fenBefore: string) => {
+  const handleMoveAttempt = useCallback(async (san: string, fenBefore: string, fenAfter: string) => {
     if (state.view !== 'analysis') return
     const { data } = state
 
-    dispatch({ type: 'SET_MOVE_STATUS', status: { isSubmittingMove: true } })
+    // Optimistic update: move piece immediately before API responds
+    dispatch({ type: 'OPTIMISTIC_MOVE', fenBefore, fenAfter })
 
     // Cancel any in-flight coach stream
     coachAbortRef.current?.abort()
@@ -498,7 +541,10 @@ export default function App() {
         fen_before: fenBefore,
         move: san,
       })
-      if (!res.data) return
+      if (!res.data) {
+        dispatch({ type: 'ROLLBACK_MOVE', fen: fenBefore })
+        return
+      }
 
       const d = res.data
       const moveResult = mapMoveResult(d.move_result)
@@ -506,8 +552,7 @@ export default function App() {
       const timelineUpdate = mapTimelineUpdate(d.timeline_update)
 
       if (!moveResult.isLegal) {
-        // Rollback
-        dispatch({ type: 'SET_MOVE_STATUS', status: { isSubmittingMove: false } })
+        dispatch({ type: 'ROLLBACK_MOVE', fen: fenBefore })
         dispatch({
           type: 'APPEND_CHAT',
           message: { role: 'system', content: 'Illegal move.', timestamp: new Date().toISOString() },
@@ -560,7 +605,7 @@ export default function App() {
         },
       ).catch(() => {})
     } catch (err) {
-      dispatch({ type: 'SET_MOVE_STATUS', status: { isSubmittingMove: false } })
+      dispatch({ type: 'ROLLBACK_MOVE', fen: fenBefore })
       const message = err instanceof Error ? err.message : 'Move failed.'
       dispatch({
         type: 'APPEND_CHAT',

@@ -14,7 +14,7 @@ interface BoardPanelProps {
   isSubmittingMove: boolean
   isWaitingForOpponent: boolean
   lastMoveResult: MoveExecutionResult | null
-  onMoveAttempt: (san: string, fenBefore: string) => void
+  onMoveAttempt: (san: string, fenBefore: string, fenAfter: string) => void
 }
 
 export function BoardPanel({
@@ -59,7 +59,7 @@ export function BoardPanel({
       }
       if (!result) return null
 
-      onMoveAttempt(result.san, currentFen)
+      onMoveAttempt(result.san, currentFen, game.fen())
       return result.san
     },
     [currentFen, isSubmittingMove, isWaitingForOpponent, onMoveAttempt],

@@ -35,7 +35,7 @@ export function FeedbackModal({ onSubmit, onCancel }: FeedbackModalProps) {
           onChange={(e) => setText(e.target.value)}
           placeholder="Share your thoughts..."
           rows={4}
-          style={{ borderRadius: 0, resize: 'none' }}
+          style={{ resize: 'none' }}
           className="px-3 py-2 text-[13px] font-ui text-text-primary bg-bg-elevated border border-border-default placeholder:text-text-muted focus:outline-none"
           autoFocus
         />

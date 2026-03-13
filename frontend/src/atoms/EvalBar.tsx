@@ -21,7 +21,7 @@ export function EvalBar({ scoreCp, mate, height, 'data-testid': testId }: EvalBa
     <div
       data-testid={testId}
       style={{ width: 16, height, flexShrink: 0 }}
-      className="flex flex-col border border-border-default overflow-hidden"
+      className="flex flex-col border border-border-default overflow-hidden rounded-lg"
     >
       {/* Black portion (top) */}
       <div

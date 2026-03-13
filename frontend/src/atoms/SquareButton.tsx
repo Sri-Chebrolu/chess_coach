@@ -30,9 +30,8 @@ export function SquareButton({
       data-testid={testId}
       onClick={onClick}
       disabled={isDisabled}
-      style={{ borderRadius: 0 }}
       className={[
-        'px-4 py-2 text-[13px] font-ui font-medium tracking-wide uppercase',
+        'px-4 py-2 text-[13px] font-ui font-medium font-bold tracking-wide uppercase',
         'transition-colors duration-100',
         variantMap[variant],
         fullWidth ? 'w-full' : '',

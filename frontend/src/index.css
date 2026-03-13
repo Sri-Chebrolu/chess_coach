@@ -1,26 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg-primary: #0f172a;
-  --bg-surface: #1e293b;
-  --bg-elevated: #334155;
-  --border: #475569;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --accent: #22d3ee;
-  --accent-hover: #67e8f9;
-  --error: #f87171;
-  --warning: #fbbf24;
-  --eval-white: #f1f5f9;
-  --eval-black: #0f172a;
-  --board-light: #e2e8f0;
-  --board-dark: #475569;
-  --font-ui: 'DM Sans', system-ui, sans-serif;
+  --bg-primary: #0a0a0a;
+  --bg-surface: #f7f5f0;
+  --bg-elevated: #eae7e0;
+  --border: #d4d0c8;
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b6b6b;
+  --text-muted: #999999;
+  --accent: #448e0d;
+  --accent-hover: #56a811;
+  --error: #dc2626;
+  --warning: #d97706;
+  --eval-white: #f7f5f0;
+  --eval-black: #0a0a0a;
+  --board-light: #f0e6c8;
+  --board-dark: #448e0d;
+  --font-ui: 'Nunito', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
 }
 

@@ -22,7 +22,6 @@ export function ColorSelectModal({ onSelect, onCancel }: ColorSelectModalProps) 
         <div className="flex gap-3">
           <button
             onClick={() => onSelect('white')}
-            style={{ borderRadius: 0 }}
             className="flex-1 flex flex-col items-center gap-2 py-4 border border-border-default bg-bg-elevated hover:bg-bg-primary transition-colors cursor-pointer"
           >
             <span className="text-[28px] leading-none">♔</span>
@@ -31,7 +30,6 @@ export function ColorSelectModal({ onSelect, onCancel }: ColorSelectModalProps) 
 
           <button
             onClick={() => onSelect('black')}
-            style={{ borderRadius: 0 }}
             className="flex-1 flex flex-col items-center gap-2 py-4 border border-border-default bg-bg-elevated hover:bg-bg-primary transition-colors cursor-pointer"
           >
             <span className="text-[28px] leading-none">♚</span>

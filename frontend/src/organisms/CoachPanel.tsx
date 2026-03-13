@@ -82,9 +82,9 @@ export function CoachPanel({
   }
 
   return (
-    <div className="flex flex-col h-full bg-bg-primary">
+    <div className="flex flex-col h-full bg-bg-surface">
       {/* Header with Reset */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border-default">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border-default">
         <span className="text-[13px] font-semibold uppercase tracking-widest text-text-secondary font-ui">
           Analysis
         </span>
@@ -114,8 +114,8 @@ export function CoachPanel({
           className={[
             'flex-1 py-2 text-[12px] uppercase tracking-widest font-ui transition-colors',
             activeTab === 'coach'
-              ? 'text-accent border-b-2 border-b-accent font-semibold'
-              : 'text-text-muted hover:text-text-secondary',
+              ? 'text-accent border-b-2 border-b-accent font-bold'
+              : 'text-text-muted hover:text-text-secondary font-bold',
           ].join(' ')}
         >
           Coach
@@ -126,8 +126,8 @@ export function CoachPanel({
           className={[
             'flex-1 py-2 text-[12px] uppercase tracking-widest font-ui transition-colors',
             activeTab === 'moves'
-              ? 'text-accent border-b-2 border-b-accent font-semibold'
-              : 'text-text-muted hover:text-text-secondary',
+              ? 'text-accent border-b-2 border-b-accent font-bold'
+              : 'text-text-muted hover:text-text-secondary font-bold',
           ].join(' ')}
         >
           Moves
@@ -135,7 +135,7 @@ export function CoachPanel({
       </div>
 
       {/* Nav Toolbar */}
-      <div className="flex items-center justify-center gap-1 px-3 py-1.5 border-b border-border-default">
+      <div className="flex items-center justify-center gap-1 px-4 py-2 border-b border-border-default">
         <button
           data-testid="nav-start"
           onClick={() => onNavigate(0)}
@@ -171,7 +171,7 @@ export function CoachPanel({
       </div>
 
       {/* Hint Toolbar */}
-      <div className="flex items-center justify-center gap-2 px-3 py-1.5 border-b border-border-default">
+      <div className="flex items-center justify-center gap-2 px-4 py-2 border-b border-border-default">
         <button
           data-testid="hint-best-line"
           onClick={onToggleBestLine}
@@ -213,10 +213,10 @@ export function CoachPanel({
               placeholder="Ask a question..."
               rows={2}
               disabled={isCoachStreaming}
-              style={{ borderRadius: 0, resize: 'none' }}
+              style={{ resize: 'none' }}
               className={[
                 'flex-1 px-3 py-2 text-[13px] font-ui text-text-primary',
-                'bg-bg-surface border-0 border-r border-border-default',
+                'bg-white border-0 border-r border-border-default',
                 'placeholder:text-text-muted focus:outline-none',
                 'disabled:opacity-40',
               ].join(' ')}
@@ -225,7 +225,7 @@ export function CoachPanel({
               data-testid="chat-send"
               onClick={handleSend}
               disabled={!input.trim() || isCoachStreaming}
-              className="px-4 text-accent hover:text-accent-hover disabled:opacity-30 disabled:cursor-not-allowed font-mono text-[16px] bg-bg-surface transition-colors"
+              className="px-4 text-accent hover:text-accent-hover disabled:opacity-30 disabled:cursor-not-allowed font-mono text-[16px] bg-white transition-colors"
             >
               &rarr;
             </button>
@@ -236,7 +236,7 @@ export function CoachPanel({
             ref={containerRef}
             data-testid="chat-history"
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto flex flex-col"
+            className="flex-1 overflow-y-auto flex flex-col gap-3 p-3"
           >
             {messages.map((msg, i) => (
               <ChatBubble key={i} {...msg} index={i} />
@@ -263,7 +263,6 @@ export function CoachPanel({
                   setHasNewMessage(false)
                   messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
                 }}
-                style={{ borderRadius: 0 }}
                 className="absolute bottom-2 text-[11px] font-ui uppercase tracking-wide px-3 py-1 bg-accent text-bg-primary"
               >
                 New message

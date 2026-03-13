@@ -22,7 +22,7 @@ export function InputPanel({ onSubmit, loading = false, error, prefill }: InputP
   return (
     <div className="flex items-center justify-center min-h-screen bg-bg-primary px-4">
       <div className="w-full max-w-[560px] flex flex-col gap-4">
-        <h1 className="text-[18px] font-semibold font-ui text-text-primary tracking-wide uppercase">
+        <h1 className="text-[18px] font-semibold font-ui text-white tracking-wide uppercase">
           Socratic Chess Coach
         </h1>
 

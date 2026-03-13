@@ -112,24 +112,24 @@ export function BoardPanel({
   // PV arrows: only show when showBestLine is toggled on
   const pvArrows: [Square, Square, string][] = []
   if (showBestLine && topMoves.length > 0 && topMoves[0].fromSquare && topMoves[0].toSquare) {
-    pvArrows.push([topMoves[0].fromSquare as Square, topMoves[0].toSquare as Square, 'rgba(68, 142, 13, 0.7)'])
+    pvArrows.push([topMoves[0].fromSquare as Square, topMoves[0].toSquare as Square, 'rgba(103, 128, 84, 0.55)'])
   }
 
   // Source square highlight: show when showBestMoveSource is toggled on
   const customSquareStyles: Record<string, React.CSSProperties> = {}
   if (showBestMoveSource && topMoves.length > 0 && topMoves[0].fromSquare) {
-    customSquareStyles[topMoves[0].fromSquare] = { backgroundColor: 'rgba(255, 170, 0, 0.5)' }
+    customSquareStyles[topMoves[0].fromSquare] = { backgroundColor: 'rgba(183, 149, 103, 0.38)' }
   }
 
   // Last move highlight
   if (lastMoveResult) {
     customSquareStyles[lastMoveResult.fromSquare] = {
       ...customSquareStyles[lastMoveResult.fromSquare],
-      boxShadow: 'inset 0 0 0 10px rgba(0, 0, 0, 0.4)',
+      boxShadow: 'inset 0 0 0 8px rgba(72, 67, 57, 0.28)',
     }
     customSquareStyles[lastMoveResult.toSquare] = {
       ...customSquareStyles[lastMoveResult.toSquare],
-      boxShadow: 'inset 0 0 0 10px rgba(0, 0, 0, 0.4)',
+      boxShadow: 'inset 0 0 0 8px rgba(72, 67, 57, 0.28)',
     }
   }
 
@@ -137,27 +137,28 @@ export function BoardPanel({
   if (selectedSquare) {
     customSquareStyles[selectedSquare] = {
       ...customSquareStyles[selectedSquare],
-      boxShadow: 'inset 0 0 0 10px rgba(0, 0, 0, 1)',
+      boxShadow: 'inset 0 0 0 8px rgba(50, 47, 40, 0.72)',
     }
     for (const move of legalMoves) {
       customSquareStyles[move.to] = {
         ...customSquareStyles[move.to],
-        background: 'radial-gradient(circle, rgba(0,0,0,0.25) 25%, transparent 25%)',
+        background: 'radial-gradient(circle, rgba(86, 82, 72, 0.22) 23%, transparent 23%)',
       }
     }
   }
 
   return (
-    <div className="flex flex-col h-full bg-bg-surface overflow-hidden">
-      <div ref={containerRef} className="flex flex-row gap-2 p-3 flex-1 min-h-0">
+    <div className="flex flex-col h-full overflow-hidden">
+      <div ref={containerRef} className="flex flex-row gap-2 p-0 flex-1 min-h-0">
         <div
           data-testid="chess-board"
           style={{
             width: boardWidth,
-            border: '4px solid white',
+            background: 'var(--board-frame)',
+            border: '1px solid var(--border)',
             borderRadius: '24px',
-            padding: '4px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            padding: '14px',
+            boxShadow: '0 14px 40px rgba(25, 25, 22, 0.18)',
           }}
         >
           <Chessboard
@@ -168,11 +169,12 @@ export function BoardPanel({
             boardWidth={boardWidth}
             boardOrientation={playerColor}
             customBoardStyle={{
-              border: '1px solid rgba(212, 208, 200, 0.3)',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+              borderRadius: '14px',
+              border: '1px solid rgba(187, 181, 169, 0.65)',
+              boxShadow: '0 10px 28px rgba(28, 27, 24, 0.14)',
             }}
-            customDarkSquareStyle={{ backgroundColor: '#448e0d' }}
-            customLightSquareStyle={{ backgroundColor: '#f0e6c8' }}
+            customDarkSquareStyle={{ backgroundColor: 'var(--board-dark)' }}
+            customLightSquareStyle={{ backgroundColor: 'var(--board-light)' }}
             customArrows={pvArrows}
             customSquareStyles={customSquareStyles}
             animationDuration={200}

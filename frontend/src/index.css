@@ -5,21 +5,22 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #0a0a0a;
-  --bg-surface: #f7f5f0;
-  --bg-elevated: #eae7e0;
-  --border: #d4d0c8;
-  --text-primary: #1a1a1a;
-  --text-secondary: #6b6b6b;
-  --text-muted: #999999;
-  --accent: #448e0d;
-  --accent-hover: #56a811;
-  --error: #dc2626;
-  --warning: #d97706;
-  --eval-white: #f7f5f0;
-  --eval-black: #0a0a0a;
-  --board-light: #f0e6c8;
-  --board-dark: #448e0d;
+  --bg-primary: #161513;
+  --bg-surface: #f3efe8;
+  --bg-elevated: #e6e0d5;
+  --border: #c8c0b4;
+  --text-primary: #24211c;
+  --text-secondary: #70695f;
+  --text-muted: #9b9388;
+  --accent: #6d8660;
+  --accent-hover: #7b9470;
+  --error: #b56060;
+  --warning: #a98356;
+  --eval-white: #f3efe8;
+  --eval-black: #1f1d1a;
+  --board-frame: #ffffff;
+  --board-light: #e7dcc0;
+  --board-dark: #6f8860;
   --font-ui: 'Nunito', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
 }

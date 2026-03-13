@@ -5,7 +5,7 @@ export default {
     extend: {
       colors: {
         'bg-primary': '#0a0a0a',
-        'bg-surface': '#f7f5f0',
+        'bg-surface': '#e0ded7',
         'bg-elevated': '#eae7e0',
         'border-default': '#d4d0c8',
         'text-primary': '#1a1a1a',

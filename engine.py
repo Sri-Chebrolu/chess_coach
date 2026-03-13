@@ -44,7 +44,7 @@ class EngineAnalysis:
         if self.engine:
             self.engine.quit()
 
-    def analyze_position(self, board: chess.Board, num_moves=3):
+    def analyze_position(self, board: chess.Board, num_moves=15):
         """Get top N moves with evaluations."""
         result = self.engine.analyse(
             board,

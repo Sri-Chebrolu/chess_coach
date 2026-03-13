@@ -294,7 +294,7 @@ async def analyze(req: AnalyzeRequest, request: Request):
         return err_response("INVALID_FEN", str(e), request_id)
 
     try:
-        result = engine.analyze_position(board, num_moves=3)
+        result = engine.analyze_position(board, num_moves=15)
     except Exception as e:
         logger.error("Engine error: %s", e)
         return err_response("ENGINE_TIMEOUT", str(e), request_id)
@@ -344,7 +344,7 @@ async def move(req: MoveRequest, request: Request):
 
     # Analyze position before move
     try:
-        result_before = engine.analyze_position(board_before, num_moves=3)
+        result_before = engine.analyze_position(board_before, num_moves=15)
     except Exception as e:
         return err_response("ENGINE_TIMEOUT", str(e), request_id)
 
@@ -354,7 +354,7 @@ async def move(req: MoveRequest, request: Request):
 
     # Analyze position after move
     try:
-        result_after = engine.analyze_position(board_after, num_moves=3)
+        result_after = engine.analyze_position(board_after, num_moves=15)
     except Exception as e:
         return err_response("ENGINE_TIMEOUT", str(e), request_id)
 
@@ -458,7 +458,7 @@ async def opponent_move(req: OpponentMoveRequest, request: Request):
 
     # Analyze position after opponent move
     try:
-        result_after = engine.analyze_position(board_after, num_moves=3)
+        result_after = engine.analyze_position(board_after, num_moves=15)
     except Exception as e:
         return err_response("ENGINE_TIMEOUT", str(e), request_id)
 
@@ -534,7 +534,7 @@ async def chat(req: ChatRequest, request: Request):
         yield {"event": "start", "data": "{}"}
         try:
             if req.analysis_mode == "position":
-                result = engine.analyze_position(board_after, num_moves=3)
+                result = engine.analyze_position(board_after, num_moves=15)
                 top_moves_str = format_top_moves(result["top_moves"])
                 heuristics_str = format_heuristics_for_prompt(extract_heuristics(board_after))
                 prompt = coach.build_position_analysis_prompt(
@@ -560,7 +560,7 @@ async def chat(req: ChatRequest, request: Request):
                 if board_before is None:
                     raise ValueError("fen_before is required for move_comparison.")
                 derived_move = derive_move_between_positions(board_before, board_after)
-                result_before = engine.analyze_position(board_before, num_moves=3)
+                result_before = engine.analyze_position(board_before, num_moves=15)
                 user_move_eval = engine.evaluate_move(board_before, derived_move)
                 best = result_before["top_moves"][0]
                 user_eval_white = user_move_eval["score_cp_white"]

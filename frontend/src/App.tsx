@@ -637,7 +637,12 @@ export default function App() {
   const handleFeedbackSubmit = useCallback(async (text: string) => {
     if (state.view !== 'analysis') return
     try {
-      await apiFeedback({ session_id: state.data.session.sessionId, feedback_text: text })
+      await apiFeedback({
+        session_id: state.data.session.sessionId,
+        feedback_text: text,
+        current_fen: state.data.position.currentFen,
+        conversation: state.data.coach.messages,
+      })
     } catch {
       // Feedback errors are silent — logging is best-effort
     }

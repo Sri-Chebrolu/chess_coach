@@ -18,11 +18,11 @@ from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel
 
-from board_state import BoardState
-from heuristics import extract_heuristics, format_heuristics_for_prompt
-import sessions as session_store
-from sessions import get_or_create_session, get_session, cleanup_sessions
-from feedback_log import append_feedback_entry
+from .board_state import BoardState
+from .heuristics import extract_heuristics, format_heuristics_for_prompt
+from . import sessions as session_store
+from .sessions import get_or_create_session, get_session, cleanup_sessions
+from .feedback_log import append_feedback_entry
 
 logging.basicConfig(
     level=logging.INFO,

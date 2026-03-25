@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from board_state import BoardState
-from engine import EngineAnalysis
-from coach import Coach
+from .board_state import BoardState
+from .engine import EngineAnalysis
+from .coach import Coach
 
 logger = logging.getLogger("chess_coach")
 

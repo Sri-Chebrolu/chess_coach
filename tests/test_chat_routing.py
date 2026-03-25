@@ -3,8 +3,8 @@ import unittest
 import chess
 from fastapi.testclient import TestClient
 
-import server
-import sessions as session_store
+from backend import server
+from backend import sessions as session_store
 
 
 class FakeEngine:

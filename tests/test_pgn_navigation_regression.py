@@ -1,7 +1,7 @@
 import unittest
 
-from board_state import BoardState
-from coach import Coach
+from backend.board_state import BoardState
+from backend.coach import Coach
 
 
 PGN_MOVE_27_REGRESSION = """[Event "Live Chess"]

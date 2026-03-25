@@ -12,9 +12,9 @@ from unittest.mock import patch, MagicMock
 import chess
 from fastapi.testclient import TestClient
 
-import server
-import sessions as session_store
-from board_state import BoardState
+from backend import server
+from backend import sessions as session_store
+from backend.board_state import BoardState
 
 STARTING_FEN = chess.STARTING_FEN  # rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
@@ -92,7 +92,7 @@ class SessionInitStartingPositionTest(unittest.TestCase):
 
     def test_session_init_with_explicit_starting_fen(self):
         """Explicit starting FEN → initial_position.fen is the standard starting position."""
-        with patch("server.get_or_create_session", return_value=_fake_session(BoardState())):
+        with patch("backend.server.get_or_create_session", return_value=_fake_session(BoardState())):
             response = self.client.post(
                 "/api/session/init",
                 json={"source_kind": "fen", "fen": STARTING_FEN, "pgn": None},
@@ -105,7 +105,7 @@ class SessionInitStartingPositionTest(unittest.TestCase):
 
     def test_session_init_with_null_fen_defaults_to_starting_position(self):
         """null fen → server defaults to chess.STARTING_FEN (existing server-side fallback)."""
-        with patch("server.get_or_create_session", return_value=_fake_session(BoardState())):
+        with patch("backend.server.get_or_create_session", return_value=_fake_session(BoardState())):
             response = self.client.post(
                 "/api/session/init",
                 json={"source_kind": "fen", "fen": None, "pgn": None},
@@ -117,7 +117,7 @@ class SessionInitStartingPositionTest(unittest.TestCase):
 
     def test_session_init_timeline_has_initial_entry_for_starting_position(self):
         """Timeline must contain exactly one entry (the initial position) for a fresh game."""
-        with patch("server.get_or_create_session", return_value=_fake_session(BoardState())):
+        with patch("backend.server.get_or_create_session", return_value=_fake_session(BoardState())):
             response = self.client.post(
                 "/api/session/init",
                 json={"source_kind": "fen", "fen": STARTING_FEN, "pgn": None},
@@ -130,7 +130,7 @@ class SessionInitStartingPositionTest(unittest.TestCase):
 
     def test_session_capabilities_include_opponent_mode(self):
         """Opponent mode must be advertised in session capabilities for FEN sessions."""
-        with patch("server.get_or_create_session", return_value=_fake_session(BoardState())):
+        with patch("backend.server.get_or_create_session", return_value=_fake_session(BoardState())):
             response = self.client.post(
                 "/api/session/init",
                 json={"source_kind": "fen", "fen": STARTING_FEN, "pgn": None},

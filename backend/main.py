@@ -1,9 +1,9 @@
 import logging
 import chess
-from board_state import BoardState
-from engine import EngineAnalysis
-from heuristics import extract_heuristics, format_heuristics_for_prompt
-from coach import Coach
+from .board_state import BoardState
+from .engine import EngineAnalysis
+from .heuristics import extract_heuristics, format_heuristics_for_prompt
+from .coach import Coach
 
 logging.basicConfig(
     filename="chess_coach.log",

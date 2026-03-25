@@ -17,9 +17,9 @@ from unittest.mock import patch, MagicMock
 import chess
 from fastapi.testclient import TestClient
 
-import server
-import sessions as session_store
-from board_state import BoardState
+from backend import server
+from backend import sessions as session_store
+from backend.board_state import BoardState
 
 STARTING_FEN = chess.STARTING_FEN  # white to move
 

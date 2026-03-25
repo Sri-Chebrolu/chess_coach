@@ -3,7 +3,7 @@ import logging
 import anthropic
 from dotenv import load_dotenv
 
-from llm_audit_log import append_chat_audit_entry
+from .llm_audit_log import append_chat_audit_entry
 
 load_dotenv()
 
